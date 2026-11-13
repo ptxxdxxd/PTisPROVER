@@ -17,13 +17,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TESTS = [
-    "tests/test_differential.py",
-    "tests/test_smt.py",
-    "tests/test_prover.py",
-    "tests/test_evaluate.py",
-    "tests/test_parser.py",
-]
+# Only tests with fixed inputs count here ("not hypothesis"): a bug that is caught
+# only when a random generator happens to produce the right case is not reliably caught.
+PYTEST = ["-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", "-m", "not hypothesis", "tests"]
 
 
 @dataclass(frozen=True)
@@ -87,16 +83,18 @@ MUTATIONS = [
 
 
 def run_tests(copy: Path) -> int:
-    env = {**os.environ, "PYTHONPATH": str(copy / "src"), "HYPOTHESIS_PROFILE": "ci"}
-    command = [sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", *TESTS]
-    return subprocess.run(command, cwd=copy, env=env, capture_output=True, check=False).returncode
+    env = {**os.environ, "PYTHONPATH": str(copy / "src")}
+    return subprocess.run(
+        [sys.executable, *PYTEST], cwd=copy, env=env, capture_output=True, check=False
+    ).returncode
 
 
 def make_copy(directory: Path) -> Path:
     copy = directory / "repo"
-    for name in ("src", "tests"):
+    for name in ("src", "tests", "examples", "scripts", "docs"):
         shutil.copytree(ROOT / name, copy / name, ignore=shutil.ignore_patterns("__pycache__"))
-    shutil.copy(ROOT / "pyproject.toml", copy / "pyproject.toml")
+    for name in ("pyproject.toml", "README.md"):
+        shutil.copy(ROOT / name, copy / name)
     return copy
 
 

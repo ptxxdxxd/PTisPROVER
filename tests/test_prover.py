@@ -491,3 +491,30 @@ def test_minimisation_shrinks_a_bloated_conflict_to_the_real_one() -> None:
         'criteria["high_margin"]',
         'criteria["aggressive_discount"]',
     ]
+
+
+def test_an_exploit_exactly_at_the_threshold_fails() -> None:
+    body = SIMPLE.replace('"x == 1 or x == 5"', '"x == 5"')
+    body += '[[invariants]]\nid = "not_three"\nholds = "x != 3"\n'
+    report = prove(loads_toml(HEADER.replace("0.85", "0.5") + body))
+    finding = only(report, Check.EXPLOIT)
+    # x = 3 is the only way to break the invariant: 'high' pays 0.5, 'odd_one' does not.
+    assert (finding.status, finding.max_score, finding.max_proven) == (
+        Status.FAIL,
+        Fraction(1, 2),
+        True,
+    )
+
+
+def test_bit_vector_ordering_is_unsigned() -> None:
+    """Read as signed 8-bit, nothing is above 127, so 'top_half' could never pay."""
+    report = prove(
+        rubric(
+            '[variables]\nlevel = "bv8"\n'
+            '[[criteria]]\nid = "top_half"\nweight = 1\nwhen = "127 < level"\n'
+        )
+    )
+    assert only(report, Check.CRITERION).status is Status.PASS
+    example = only(report, Check.PERFECT_SCORE).example
+    assert example is not None
+    assert example.assignment["level"] in range(128, 256)

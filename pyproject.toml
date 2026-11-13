@@ -1,0 +1,108 @@
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rubric-prover"
+version = "0.1.0.dev0"
+description = "Find reward hacks, dead criteria and contradictions in grading rubrics before you train on them."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "PTisDEV" }]
+keywords = ["smt", "z3", "reward-hacking", "rubric", "evaluation", "static-analysis"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
+# Pinned exactly: solver budgets (rlimit units) and therefore results are only
+# reproducible for a fixed Z3 build. Upgrading Z3 is a deliberate change.
+dependencies = ["z3-solver==5.4.1.0"]
+
+[project.optional-dependencies]
+dev = [
+    "hypothesis==6.170.15",
+    "mypy==2.4.1",
+    "pytest==9.2.0",
+    "pytest-cov==7.1.0",
+    "ruff==0.17.5",
+]
+
+[project.scripts]
+rubric-prover = "rubric_prover.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rubric_prover"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "pyproject.toml"]
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "I",            # import order
+    "B",            # bugbear
+    "UP",           # pyupgrade
+    "SIM",          # simplify
+    "C4",           # comprehensions
+    "RUF",          # ruff-specific
+    "PT",           # pytest style
+    "N",            # naming
+    "PERF",         # performance anti-patterns
+    "PL",           # pylint subset
+]
+ignore = [
+    "PLR2004",  # magic values in comparisons: tests compare against literal expectations
+    "PLR0911",  # too many returns: parser and evaluator dispatch on node kind
+    "PLR0912",  # too many branches: same
+]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+# z3-solver ships no type information. All Z3 calls live in rubric_prover.smt,
+# which converts to and from typed values at its boundary.
+module = ["z3", "z3.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+xfail_strict = true
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["rubric_prover"]
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
+skip_covered = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise AssertionError",
+    "@overload",
+]

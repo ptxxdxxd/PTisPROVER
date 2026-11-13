@@ -1,0 +1,15 @@
+summary-length: FAIL (1 failed, 6 passed)
+
+  pass       Possible outcomes: at least one outcome satisfies the bounds and assumptions
+  FAIL       Perfect score: no outcome can score 1, because these requirements cannot all hold
+             conflict (removing any one of these removes the conflict):
+               assume[0]             words >= 15 * key_points
+               criteria["coverage"]  key_points >= 8
+               criteria["brevity"]   words <= 100
+  pass       Reward hacking: breaking 'no_unsupported_claims' scores at most 0.5, below the threshold 0.85
+  pass       Criterion range: 'coverage' can pay and can fail
+  pass       Criterion range: 'brevity' can pay and can fail
+  pass       Criterion range: 'faithful' can pay and can fail
+  pass       Overlapping criteria: no criterion pays whenever another does (6 ordered pairs checked)
+
+Checked by rubric-prover 0.1.0.dev0 with z3 5.4.1: 9 solver queries used 4,577 work units (budget 5,000,000 per query).

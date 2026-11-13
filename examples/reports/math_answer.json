@@ -1,0 +1,143 @@
+{
+  "rubric": "math-answer",
+  "verdict": "fail",
+  "counts": {
+    "pass": 7,
+    "warn": 1,
+    "fail": 1,
+    "inconclusive": 0,
+    "skipped": 0
+  },
+  "solver": {
+    "name": "z3 5.4.1",
+    "budget_per_query": 5000000,
+    "queries": 12,
+    "work": 6603
+  },
+  "findings": [
+    {
+      "check": "outcomes-exist",
+      "status": "pass",
+      "subjects": [],
+      "message": "at least one outcome satisfies the bounds and assumptions",
+      "example": {
+        "outcome": {
+          "answer_correct": false,
+          "reasoning_steps": 0,
+          "tokens": 1,
+          "format": 0
+        },
+        "score": "0.1",
+        "paying": [
+          "within_limit"
+        ],
+        "firing": [],
+        "broken": [
+          "high_scores_are_correct"
+        ]
+      }
+    },
+    {
+      "check": "perfect-score",
+      "status": "pass",
+      "subjects": [],
+      "message": "a perfect score of 1 is reachable",
+      "example": {
+        "outcome": {
+          "answer_correct": true,
+          "reasoning_steps": 3,
+          "tokens": 1,
+          "format": 1
+        },
+        "score": "1",
+        "paying": [
+          "correct",
+          "shows_work",
+          "thorough",
+          "within_limit",
+          "boxed_answer"
+        ],
+        "firing": [],
+        "broken": []
+      }
+    },
+    {
+      "check": "exploit",
+      "status": "pass",
+      "subjects": [
+        "high_scores_are_correct"
+      ],
+      "message": "breaking 'high_scores_are_correct' scores at most 0.5, below the threshold 0.6",
+      "max_score": "0.5",
+      "max_proven": true,
+      "example": {
+        "outcome": {
+          "answer_correct": false,
+          "reasoning_steps": 3,
+          "tokens": 1,
+          "format": 1
+        },
+        "score": "0.5",
+        "paying": [
+          "shows_work",
+          "thorough",
+          "within_limit",
+          "boxed_answer"
+        ],
+        "firing": [],
+        "broken": [
+          "high_scores_are_correct"
+        ]
+      }
+    },
+    {
+      "check": "criterion-range",
+      "status": "pass",
+      "subjects": [
+        "correct"
+      ],
+      "message": "'correct' can pay and can fail"
+    },
+    {
+      "check": "criterion-range",
+      "status": "pass",
+      "subjects": [
+        "shows_work"
+      ],
+      "message": "'shows_work' can pay and can fail"
+    },
+    {
+      "check": "criterion-range",
+      "status": "pass",
+      "subjects": [
+        "thorough"
+      ],
+      "message": "'thorough' can pay and can fail"
+    },
+    {
+      "check": "criterion-range",
+      "status": "fail",
+      "subjects": [
+        "within_limit"
+      ],
+      "message": "'within_limit' pays for every admissible outcome: free reward"
+    },
+    {
+      "check": "criterion-range",
+      "status": "pass",
+      "subjects": [
+        "boxed_answer"
+      ],
+      "message": "'boxed_answer' can pay and can fail"
+    },
+    {
+      "check": "criterion-overlap",
+      "status": "warn",
+      "subjects": [
+        "thorough",
+        "shows_work"
+      ],
+      "message": "whenever 'thorough' pays, 'shows_work' pays too (0.3 together); fine for intentional tiers, otherwise it double counts"
+    }
+  ]
+}

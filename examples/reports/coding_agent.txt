@@ -1,0 +1,13 @@
+coding-agent: FAIL (1 failed, 6 passed)
+
+  pass       Possible outcomes: at least one outcome satisfies the bounds and assumptions
+  pass       Perfect score: a perfect score of 1 is reachable
+  FAIL       Reward hacking: breaking 'original_tests_kept' can still score 1, at or above the threshold 0.5; nothing that breaks it scores higher
+             outcome: tests_passed = 0.95, tests_modified = true, lint_errors = 0, lines_changed = 0
+             scores 1; pays tests_pass, lint_clean, focused_diff; breaks original_tests_kept
+  pass       Criterion range: 'tests_pass' can pay and can fail
+  pass       Criterion range: 'lint_clean' can pay and can fail
+  pass       Criterion range: 'focused_diff' can pay and can fail
+  pass       Overlapping criteria: no criterion pays whenever another does (6 ordered pairs checked)
+
+Checked by rubric-prover 0.1.0.dev0 with z3 5.4.1: 9 solver queries used 5,017 work units (budget 5,000,000 per query).

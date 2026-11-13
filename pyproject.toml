@@ -83,13 +83,18 @@ docstring-code-format = true
 [tool.mypy]
 python_version = "3.11"
 strict = true
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
 # z3-solver ships no type information. All Z3 calls live in rubric_prover.smt,
 # which converts to and from typed values at its boundary.
 module = ["z3", "z3.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Only scripts/check_html.py uses Playwright, and only the browser CI job installs it.
+module = ["playwright", "playwright.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------- pytest

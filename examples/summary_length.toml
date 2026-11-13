@@ -1,0 +1,35 @@
+# Grades a summary of a long document. Synthetic example.
+#
+# The flaw: the rubric asks for at least 8 key points in at most 100 words, but
+# stating a key point takes about 15 words (the assumption). 8 x 15 = 120 words,
+# so no summary can earn a perfect score, and the model is trained on a target
+# it can never hit. The perfect-score check names the three rules that conflict.
+
+id = "summary-length"
+description = "Summaries of long reports, graded on coverage, length and faithfulness."
+exploit_threshold = 0.85
+assume = ["words >= 15 * key_points"]
+
+[variables]
+words = { type = "int", min = 0, max = 1000 }
+key_points = { type = "int", min = 0, max = 12, description = "key points of the source the summary covers" }
+unsupported_claims = { type = "int", min = 0, max = 20 }
+
+[[criteria]]
+id = "coverage"
+weight = 0.5
+when = "key_points >= 8"
+
+[[criteria]]
+id = "brevity"
+weight = 0.3
+when = "words <= 100"
+
+[[criteria]]
+id = "faithful"
+weight = 0.2
+when = "unsupported_claims == 0"
+
+[[invariants]]
+id = "no_unsupported_claims"
+holds = "unsupported_claims == 0"

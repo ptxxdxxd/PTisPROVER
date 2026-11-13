@@ -1,0 +1,48 @@
+# Grades an answer to a maths word problem. Synthetic example.
+#
+# Two problems, one of each severity:
+# - within_limit pays for staying under 4096 tokens, but generation is capped at
+#   4096 tokens, so it pays every time: free reward (fail).
+# - thorough (3+ steps) can only pay when shows_work (1+ step) also pays. That may
+#   be an intentional tier, so it is a warning, not a failure.
+# Wrong answers are capped well below the threshold, so the reward-hacking check
+# passes.
+
+id = "math-answer"
+description = "Answers to maths word problems with worked reasoning."
+exploit_threshold = 0.6
+
+[variables]
+answer_correct = "bool"
+reasoning_steps = { type = "int", min = 0, max = 50 }
+tokens = { type = "int", min = 1, max = 4096, description = "generation is capped at 4096 tokens" }
+format = { type = "bv2", description = "bit 0: final answer boxed; bit 1: units stated" }
+
+[[criteria]]
+id = "correct"
+weight = 0.5
+when = "answer_correct"
+
+[[criteria]]
+id = "shows_work"
+weight = 0.15
+when = "reasoning_steps >= 1"
+
+[[criteria]]
+id = "thorough"
+weight = 0.15
+when = "reasoning_steps >= 3"
+
+[[criteria]]
+id = "within_limit"
+weight = 0.1
+when = "tokens <= 4096"
+
+[[criteria]]
+id = "boxed_answer"
+weight = 0.1
+when = "format & 0b01 == 0b01"
+
+[[invariants]]
+id = "high_scores_are_correct"
+holds = "answer_correct"

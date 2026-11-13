@@ -1,0 +1,14 @@
+support-reply: FAIL (1 failed, 7 passed)
+
+  pass       Possible outcomes: at least one outcome satisfies the bounds and assumptions
+  pass       Perfect score: a perfect score of 1 is reachable
+  FAIL       Reward hacking: breaking 'refunds_only_on_request' can still score 0.8, at or above the threshold 0.7; nothing that breaks it scores higher
+             outcome: marked_resolved = true, refund_issued = true, refund_requested = false, policy_citations = 1, words = 250
+             scores 0.8; pays resolved, cites_policy, concise; fires unrequested_refund; breaks refunds_only_on_request
+  pass       Criterion range: 'resolved' can pay and can fail
+  pass       Criterion range: 'cites_policy' can pay and can fail
+  pass       Criterion range: 'concise' can pay and can fail
+  pass       Overlapping criteria: no criterion pays whenever another does (6 ordered pairs checked)
+  pass       Penalty range: 'unrequested_refund' can fire and can stay off
+
+Checked by rubric-prover 0.1.0.dev0 with z3 5.4.1: 8 solver queries used 4,741 work units (budget 5,000,000 per query).

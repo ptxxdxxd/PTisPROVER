@@ -476,3 +476,18 @@ def test_findings_follow_declaration_order() -> None:
         ("fast_delivery",),
         ("full_compliance",),
     ]
+
+
+def test_minimisation_shrinks_a_bloated_conflict_to_the_real_one() -> None:
+    """Z3's first core is often minimal already; force the shrinking path with a padded one."""
+    rubric = load_rubric(ORIGINAL / "contradictory_pricing.toml")
+    prover = prover_module._Prover(rubric, budget=1_000_000, keep_smt2=False)
+    encoding = prover.encoding
+    requirements = [*encoding.domain, *(encoding.criterion_pays(c.id) for c in rubric.criteria)]
+    conflict = prover._minimize("padded", [r.path for r in requirements], requirements)
+    assert conflict.minimal
+    assert [i.path for i in conflict.items] == [
+        "assume[0]",
+        'criteria["high_margin"]',
+        'criteria["aggressive_discount"]',
+    ]

@@ -1,0 +1,136 @@
+{
+  "rubric": "support-reply",
+  "verdict": "fail",
+  "counts": {
+    "pass": 7,
+    "warn": 0,
+    "fail": 1,
+    "inconclusive": 0,
+    "skipped": 0
+  },
+  "solver": {
+    "name": "z3 5.4.1",
+    "budget_per_query": 5000000,
+    "queries": 8,
+    "work": 4741
+  },
+  "findings": [
+    {
+      "check": "outcomes-exist",
+      "status": "pass",
+      "subjects": [],
+      "message": "at least one outcome satisfies the bounds and assumptions",
+      "example": {
+        "outcome": {
+          "marked_resolved": false,
+          "refund_issued": false,
+          "refund_requested": false,
+          "policy_citations": 0,
+          "words": 1
+        },
+        "score": "0.3",
+        "paying": [
+          "concise"
+        ],
+        "firing": [],
+        "broken": []
+      }
+    },
+    {
+      "check": "perfect-score",
+      "status": "pass",
+      "subjects": [],
+      "message": "a perfect score of 1 is reachable",
+      "example": {
+        "outcome": {
+          "marked_resolved": true,
+          "refund_issued": false,
+          "refund_requested": false,
+          "policy_citations": 1,
+          "words": 1
+        },
+        "score": "1",
+        "paying": [
+          "resolved",
+          "cites_policy",
+          "concise"
+        ],
+        "firing": [],
+        "broken": []
+      }
+    },
+    {
+      "check": "exploit",
+      "status": "fail",
+      "subjects": [
+        "refunds_only_on_request"
+      ],
+      "message": "breaking 'refunds_only_on_request' can still score 0.8, at or above the threshold 0.7; nothing that breaks it scores higher",
+      "max_score": "0.8",
+      "max_proven": true,
+      "example": {
+        "outcome": {
+          "marked_resolved": true,
+          "refund_issued": true,
+          "refund_requested": false,
+          "policy_citations": 1,
+          "words": 250
+        },
+        "score": "0.8",
+        "paying": [
+          "resolved",
+          "cites_policy",
+          "concise"
+        ],
+        "firing": [
+          "unrequested_refund"
+        ],
+        "broken": [
+          "refunds_only_on_request"
+        ]
+      }
+    },
+    {
+      "check": "criterion-range",
+      "status": "pass",
+      "subjects": [
+        "resolved"
+      ],
+      "message": "'resolved' can pay and can fail"
+    },
+    {
+      "check": "criterion-range",
+      "status": "pass",
+      "subjects": [
+        "cites_policy"
+      ],
+      "message": "'cites_policy' can pay and can fail"
+    },
+    {
+      "check": "criterion-range",
+      "status": "pass",
+      "subjects": [
+        "concise"
+      ],
+      "message": "'concise' can pay and can fail"
+    },
+    {
+      "check": "criterion-overlap",
+      "status": "pass",
+      "subjects": [
+        "resolved",
+        "cites_policy",
+        "concise"
+      ],
+      "message": "no criterion pays whenever another does (6 ordered pairs checked)"
+    },
+    {
+      "check": "penalty-range",
+      "status": "pass",
+      "subjects": [
+        "unrequested_refund"
+      ],
+      "message": "'unrequested_refund' can fire and can stay off"
+    }
+  ]
+}

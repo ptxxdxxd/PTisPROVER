@@ -1,0 +1,13 @@
+math-answer: FAIL (1 failed, 1 warning, 7 passed)
+
+  pass       Possible outcomes: at least one outcome satisfies the bounds and assumptions
+  pass       Perfect score: a perfect score of 1 is reachable
+  pass       Reward hacking: breaking 'high_scores_are_correct' scores at most 0.5, below the threshold 0.6
+  pass       Criterion range: 'correct' can pay and can fail
+  pass       Criterion range: 'shows_work' can pay and can fail
+  pass       Criterion range: 'thorough' can pay and can fail
+  FAIL       Criterion range: 'within_limit' pays for every admissible outcome: free reward
+  pass       Criterion range: 'boxed_answer' can pay and can fail
+  warn       Overlapping criteria: whenever 'thorough' pays, 'shows_work' pays too (0.3 together); fine for intentional tiers, otherwise it double counts
+
+Checked by rubric-prover 0.1.0.dev0 with z3 5.4.1: 12 solver queries used 6,603 work units (budget 5,000,000 per query).

@@ -1,0 +1,124 @@
+{
+  "rubric": "coding-agent",
+  "verdict": "fail",
+  "counts": {
+    "pass": 6,
+    "warn": 0,
+    "fail": 1,
+    "inconclusive": 0,
+    "skipped": 0
+  },
+  "solver": {
+    "name": "z3 5.4.1",
+    "budget_per_query": 5000000,
+    "queries": 9,
+    "work": 5017
+  },
+  "findings": [
+    {
+      "check": "outcomes-exist",
+      "status": "pass",
+      "subjects": [],
+      "message": "at least one outcome satisfies the bounds and assumptions",
+      "example": {
+        "outcome": {
+          "tests_passed": "0",
+          "tests_modified": false,
+          "lint_errors": 0,
+          "lines_changed": 0
+        },
+        "score": "0.4",
+        "paying": [
+          "lint_clean",
+          "focused_diff"
+        ],
+        "firing": [],
+        "broken": []
+      }
+    },
+    {
+      "check": "perfect-score",
+      "status": "pass",
+      "subjects": [],
+      "message": "a perfect score of 1 is reachable",
+      "example": {
+        "outcome": {
+          "tests_passed": "0.95",
+          "tests_modified": false,
+          "lint_errors": 0,
+          "lines_changed": 0
+        },
+        "score": "1",
+        "paying": [
+          "tests_pass",
+          "lint_clean",
+          "focused_diff"
+        ],
+        "firing": [],
+        "broken": []
+      }
+    },
+    {
+      "check": "exploit",
+      "status": "fail",
+      "subjects": [
+        "original_tests_kept"
+      ],
+      "message": "breaking 'original_tests_kept' can still score 1, at or above the threshold 0.5; nothing that breaks it scores higher",
+      "max_score": "1",
+      "max_proven": true,
+      "example": {
+        "outcome": {
+          "tests_passed": "0.95",
+          "tests_modified": true,
+          "lint_errors": 0,
+          "lines_changed": 0
+        },
+        "score": "1",
+        "paying": [
+          "tests_pass",
+          "lint_clean",
+          "focused_diff"
+        ],
+        "firing": [],
+        "broken": [
+          "original_tests_kept"
+        ]
+      }
+    },
+    {
+      "check": "criterion-range",
+      "status": "pass",
+      "subjects": [
+        "tests_pass"
+      ],
+      "message": "'tests_pass' can pay and can fail"
+    },
+    {
+      "check": "criterion-range",
+      "status": "pass",
+      "subjects": [
+        "lint_clean"
+      ],
+      "message": "'lint_clean' can pay and can fail"
+    },
+    {
+      "check": "criterion-range",
+      "status": "pass",
+      "subjects": [
+        "focused_diff"
+      ],
+      "message": "'focused_diff' can pay and can fail"
+    },
+    {
+      "check": "criterion-overlap",
+      "status": "pass",
+      "subjects": [
+        "tests_pass",
+        "lint_clean",
+        "focused_diff"
+      ],
+      "message": "no criterion pays whenever another does (6 ordered pairs checked)"
+    }
+  ]
+}

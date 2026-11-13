@@ -261,7 +261,7 @@ class _Prover:
                     Check.PERFECT_SCORE,
                     Status.FAIL,
                     tuple([i.path for i in conflict.items]),
-                    "a perfect score is unreachable: these requirements cannot all hold",
+                    "no outcome can score 1, because these requirements cannot all hold",
                     conflict=conflict,
                 )
             )

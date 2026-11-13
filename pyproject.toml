@@ -45,7 +45,7 @@ rubric-prover = "rubric_prover.cli:main"
 packages = ["src/rubric_prover"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "tests", "README.md", "pyproject.toml"]
+include = ["src", "tests", "examples", "scripts", "docs", "README.md", "CHANGELOG.md", "pyproject.toml"]
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]

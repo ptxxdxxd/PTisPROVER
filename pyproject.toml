@@ -28,6 +28,7 @@ dependencies = ["z3-solver==5.4.1.0"]
 
 [project.optional-dependencies]
 dev = [
+    "cvc5==1.4.2",
     "hypothesis==6.170.15",
     "jsonschema==4.26.0",
     "mypy==2.4.1",
@@ -93,8 +94,8 @@ module = ["z3", "z3.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# Only scripts/check_html.py uses Playwright, and only the browser CI job installs it.
-module = ["playwright", "playwright.*"]
+# Used by scripts only: Playwright by check_html.py (browser CI job), cvc5 by cross_check.py.
+module = ["playwright", "playwright.*", "cvc5", "cvc5.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------- pytest

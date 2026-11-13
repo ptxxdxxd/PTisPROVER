@@ -199,7 +199,7 @@ class Encoding:
 
     def _score(self) -> z3.ArithRef:
         zero = self.rational(Fraction(0))
-        earned = z3.Sum(
+        earned = _total(
             [
                 z3.If(self.criteria[c.id], self.rational(c.weight), zero)
                 for c in self.rubric.criteria
@@ -210,12 +210,21 @@ class Encoding:
             for p in self.rubric.penalties
             if p.deduction is not None
         ]
-        net = earned - z3.Sum(deductions) if deductions else earned
+        net = earned - _total(deductions) if deductions else earned
         floored = z3.If(net < zero, zero, net)
         zeroing = [self.penalties[p.id] for p in self.rubric.penalties if p.deduction is None]
         if not zeroing:
             return floored
         return z3.If(z3.Or(*zeroing, self.ctx), zero, floored)
+
+
+def _total(terms: Sequence[z3.ArithRef]) -> z3.ArithRef:
+    """Sum of one or more terms. z3.Sum would print a single term as ``(+ x)``,
+    which is not valid SMT-LIB and which cvc5 refuses to parse."""
+    total = terms[0]
+    for term in terms[1:]:
+        total = total + term
+    return total
 
 
 class Session:
@@ -251,7 +260,7 @@ class Session:
             solver.assert_and_track(requirement.formula, tracker)
         for constraint in constraints:
             solver.add(constraint)
-        smt2 = solver.to_smt2() if self.keep_smt2 else None
+        smt2 = self._export([r.formula for r in tracked] + list(constraints))
         verdict = solver.check()
         # Z3 counts resource units per Context, cumulatively across solvers.
         total = int(solver.statistics().get_key_value("rlimit count"))
@@ -279,6 +288,19 @@ class Session:
             score=Fraction(score.numerator_as_long(), score.denominator_as_long()),
             irrational=irrational,
         )
+
+    def _export(self, formulas: Sequence[z3.BoolRef]) -> str | None:
+        """The query as SMT-LIB2, for other solvers.
+
+        Written from a second solver with every formula asserted plainly: Z3
+        exports a tracked assertion as ``tracker => formula``, which any other
+        solver can satisfy by setting the tracker to false.
+        """
+        if not self.keep_smt2:
+            return None
+        plain = z3.Solver(ctx=self.encoding.ctx)
+        plain.add(*formulas)
+        return "(set-logic ALL)\n" + str(plain.to_smt2())
 
     def _read_model(self, model: z3.ModelRef) -> tuple[dict[str, ir.Value], bool]:
         values: dict[str, ir.Value] = {}

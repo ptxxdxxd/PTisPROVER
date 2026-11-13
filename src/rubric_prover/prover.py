@@ -65,6 +65,20 @@ class Proof:
     report: Report
     queries: tuple[Query, ...]
 
+    def smt2_files(self) -> dict[str, str]:
+        """File name -> SMT-LIB2 text for every query, headed by the question and Z3's answer."""
+        files = {}
+        for number, query in enumerate(self.queries, start=1):
+            if query.smt2 is None:
+                raise ValueError("run_checks was not called with keep_smt2=True")
+            files[f"query-{number:03}.smt2"] = (
+                f"; rubric: {self.report.rubric_id}\n"
+                f"; question: {query.label}\n"
+                f"; z3: {query.answer.value}\n"
+                f"{query.smt2}"
+            )
+        return files
+
 
 def prove(rubric: Rubric, *, budget: int = DEFAULT_BUDGET) -> Report:
     """Run every check on ``rubric``. ``budget`` is Z3 resource units per query."""

@@ -10,4 +10,4 @@ math-answer: FAIL (1 failed, 1 warning, 7 passed)
   pass       Criterion range: 'boxed_answer' can pay and can fail
   warn       Overlapping criteria: whenever 'thorough' pays, 'shows_work' pays too (0.3 together); fine for intentional tiers, otherwise it double counts
 
-Checked by rubric-prover 0.1.0.dev0 with z3 5.4.1: 12 solver queries used 6,603 work units (budget 5,000,000 per query).
+Checked by rubric-prover 0.1.0.dev0 with z3 5.4.1: 12 solver queries used 6,711 work units (budget 5,000,000 per query).

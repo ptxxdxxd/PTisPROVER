@@ -18,7 +18,7 @@ import z3
 from rubric_prover import __version__
 from rubric_prover.errors import InternalError, RubricError
 from rubric_prover.loader import load_rubric
-from rubric_prover.prover import prove
+from rubric_prover.prover import run_checks
 from rubric_prover.render import render_html, render_text
 from rubric_prover.report import Status
 from rubric_prover.schema import rubric_schema_text
@@ -75,6 +75,12 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Z3 resource units per solver query (default {DEFAULT_BUDGET:,})",
     )
     check.add_argument(
+        "--emit-smt2",
+        type=Path,
+        metavar="DIR",
+        help="also write every solver query to DIR as SMT-LIB2 (replaces query-*.smt2 there)",
+    )
+    check.add_argument(
         "--fail-on-warning", action="store_true", help="exit 1 if there are warnings"
     )
     check.add_argument(
@@ -105,10 +111,18 @@ def _check(args: argparse.Namespace) -> int:
     except RubricError as exc:
         return _input_error("\n".join(f"{path}: {d.render()}" for d in exc.diagnostics))
     try:
-        report = prove(rubric, budget=args.budget)
+        proof = run_checks(rubric, budget=args.budget, keep_smt2=args.emit_smt2 is not None)
     except InternalError as exc:
         sys.stderr.write(f"rubric-prover: internal error, please report it: {exc}\n")
         return EXIT_INTERNAL
+    report = proof.report
+    if args.emit_smt2 is not None:
+        directory: Path = args.emit_smt2
+        directory.mkdir(parents=True, exist_ok=True)
+        for stale in directory.glob("query-*.smt2"):
+            stale.unlink()
+        for name, text in proof.smt2_files().items():
+            (directory / name).write_text(text, encoding="utf-8")
 
     if args.format == "json":
         text = report.to_json()

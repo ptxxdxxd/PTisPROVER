@@ -12,7 +12,7 @@
     "name": "z3 5.4.1",
     "budget_per_query": 5000000,
     "queries": 9,
-    "work": 4577
+    "work": 4597
   },
   "findings": [
     {

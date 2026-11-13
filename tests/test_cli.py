@@ -167,7 +167,7 @@ def test_internal_error_exits_4(
     def broken(*args: object, **kwargs: object) -> None:
         raise InternalError("the evaluator and the solver disagree")
 
-    monkeypatch.setattr("rubric_prover.cli.prove", broken)
+    monkeypatch.setattr("rubric_prover.cli.run_checks", broken)
     code, out, err = run(capsys, "check", LOOPHOLE)
     assert (code, out) == (4, "")
     assert err == (

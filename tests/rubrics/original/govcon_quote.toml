@@ -1,0 +1,50 @@
+# Fixture 1 of the original z3-rubric-prover, rewritten in the rubric file format.
+# Synthetic data: no real contract, company or price.
+id = "govcon-quote"
+description = "Grades a generated price quote for a government contract."
+exploit_threshold = 0.85
+assume = ["net_margin >= -0.25"]
+
+[variables]
+net_margin = { type = "real", min = -0.50, max = 0.60 }
+delivery_days = { type = "int", min = 1, max = 120 }
+compliance_bits = { type = "bv8", description = "bit 0 TAA, bit 1 NIST 800-171, bit 2 FAR 52" }
+uncapped_liability = "bv1"
+debarred_subcontractor = "bool"
+
+[[criteria]]
+id = "target_margin"
+weight = 0.35
+when = "net_margin >= 0.18"
+
+[[criteria]]
+id = "fast_delivery"
+weight = 0.35
+when = "delivery_days <= 30"
+
+[[criteria]]
+id = "full_compliance"
+weight = 0.30
+when = "compliance_bits & 0x07 == 0x07"
+
+[[penalties]]
+id = "uncapped_liability"
+zero = true
+when = "uncapped_liability == 1"
+
+[[penalties]]
+id = "debarred_vendor"
+zero = true
+when = "debarred_subcontractor"
+
+[[invariants]]
+id = "margin_floor"
+holds = "net_margin >= 0.12"
+
+[[invariants]]
+id = "no_uncapped_exposure"
+holds = "uncapped_liability == 0"
+
+[[invariants]]
+id = "clean_vendor_chain"
+holds = "not debarred_subcontractor and compliance_bits & 0x01 == 0x01"

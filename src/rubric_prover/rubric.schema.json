@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "rubric-prover rubric",
+  "description": "Structure of a rubric file (TOML or JSON). Checks the loader also performs and the schema cannot express: weights summing to exactly 1, min <= max, bit-vector bound ranges, unique ids, and that every condition parses and is a well-typed bool.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "exploit_threshold", "variables", "criteria"],
+  "properties": {
+    "id": { "$ref": "#/$defs/id" },
+    "description": { "type": "string" },
+    "exploit_threshold": {
+      "$ref": "#/$defs/unitFraction",
+      "description": "A rubric fails if breaking any invariant can still earn at least this score."
+    },
+    "assume": {
+      "type": "array",
+      "description": "Conditions every possible outcome satisfies.",
+      "items": { "$ref": "#/$defs/expression" }
+    },
+    "variables": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$",
+        "not": { "enum": ["and", "or", "not", "implies", "true", "false"] }
+      },
+      "additionalProperties": {
+        "oneOf": [{ "$ref": "#/$defs/typeName" }, { "$ref": "#/$defs/variable" }]
+      }
+    },
+    "criteria": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/criterion" } },
+    "penalties": { "type": "array", "items": { "$ref": "#/$defs/penalty" } },
+    "invariants": { "type": "array", "items": { "$ref": "#/$defs/invariant" } }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$" },
+    "expression": { "type": "string", "minLength": 1, "maxLength": 10000 },
+    "unitFraction": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+    "typeName": { "type": "string", "pattern": "^(bool|int|real|bv([1-9]|[1-5][0-9]|6[0-4]))$" },
+    "variable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "$ref": "#/$defs/typeName" },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "description": { "type": "string" }
+      }
+    },
+    "criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "weight", "when"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "weight": { "$ref": "#/$defs/unitFraction" },
+        "when": { "$ref": "#/$defs/expression" },
+        "description": { "type": "string" }
+      }
+    },
+    "penalty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "when"],
+      "oneOf": [{ "required": ["deduct"] }, { "required": ["zero"] }],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "when": { "$ref": "#/$defs/expression" },
+        "deduct": { "$ref": "#/$defs/unitFraction" },
+        "zero": { "const": true },
+        "description": { "type": "string" }
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "holds"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "holds": { "$ref": "#/$defs/expression" },
+        "description": { "type": "string" }
+      }
+    }
+  }
+}

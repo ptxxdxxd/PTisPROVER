@@ -1,0 +1,38 @@
+# Fixture 3 of the original z3-rubric-prover, rewritten in the rubric file format.
+# The original's two "market coupling" assumptions are kept as written; the
+# audit showed they hide a worse exploit than the one this fixture was built for.
+id = "loophole-volume"
+exploit_threshold = 0.85
+assume = [
+    "uncapped_liability == 1 implies (net_margin == -0.12 and deal_volume_usd == 750000 and quote_latency_ms == 100)",
+    "net_margin < 0.05 implies uncapped_liability == 1",
+]
+
+[variables]
+deal_volume_usd = { type = "real", min = 0, max = 1000000 }
+quote_latency_ms = { type = "int", min = 10, max = 5000 }
+net_margin = { type = "real", min = -0.12, max = 0.40 }
+uncapped_liability = "bv1"
+
+[[criteria]]
+id = "volume"
+weight = 0.55
+when = "deal_volume_usd >= 500000"
+
+[[criteria]]
+id = "speed"
+weight = 0.45
+when = "quote_latency_ms <= 250"
+
+[[penalties]]
+id = "weak_risk_deduction"
+deduct = 0.10
+when = "uncapped_liability == 1 or net_margin < 0"
+
+[[invariants]]
+id = "positive_margin"
+holds = "net_margin >= 0.05"
+
+[[invariants]]
+id = "no_uncapped_liability"
+holds = "uncapped_liability == 0"

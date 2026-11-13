@@ -1,0 +1,24 @@
+# Fixture 2 of the original z3-rubric-prover, rewritten in the rubric file format.
+# The two criteria cannot both hold: margin + discount <= 0.50 rules out
+# margin >= 0.25 together with discount >= 0.30.
+id = "contradictory-pricing"
+exploit_threshold = 0.85
+assume = ["margin + discount <= 0.50"]
+
+[variables]
+margin = { type = "real", min = 0, max = 1 }
+discount = { type = "real", min = 0, max = 1 }
+
+[[criteria]]
+id = "high_margin"
+weight = 0.50
+when = "margin >= 0.25"
+
+[[criteria]]
+id = "aggressive_discount"
+weight = 0.50
+when = "discount >= 0.30"
+
+[[invariants]]
+id = "non_negative_margin"
+holds = "margin >= 0"

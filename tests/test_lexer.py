@@ -41,8 +41,13 @@ def test_number_literals(text: str, kind: Kind) -> None:
 
 def test_two_character_operators_win_over_one_character_ones() -> None:
     assert [t.text for t in tokenize("a<=b>=c==d!=e<f>g")][1:-1:2] == [
-        "<=", ">=", "==", "!=", "<", ">"
-    ]  # fmt: skip
+        "<=",
+        ">=",
+        "==",
+        "!=",
+        "<",
+        ">",
+    ]
 
 
 def test_end_token_sits_at_the_end_of_the_text() -> None:

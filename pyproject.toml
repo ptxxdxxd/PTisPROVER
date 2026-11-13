@@ -72,6 +72,10 @@ ignore = [
     "PLR0912",  # too many branches: same
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Table-driven tests take one argument per column of the table.
+"tests/**" = ["PLR0913", "PLR0917"]
+
 [tool.ruff.format]
 docstring-code-format = true
 

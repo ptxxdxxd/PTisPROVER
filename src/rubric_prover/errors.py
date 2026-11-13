@@ -77,3 +77,7 @@ class RubricError(Exception):
     ) -> RubricError:
         start, end = span if span is not None else (None, None)
         return cls([Diagnostic(message, path=path, text=text, start=start, end=end)])
+
+
+class InternalError(Exception):
+    """The solver and the reference evaluator disagree. Always a bug; never reported as a result."""

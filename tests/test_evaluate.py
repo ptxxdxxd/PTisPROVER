@@ -206,7 +206,7 @@ def test_malformed_assignments_are_programming_errors(
     redundant: Rubric, env: dict[str, object], message: str
 ) -> None:
     with pytest.raises(ValueError, match=message):
-        validate_assignment(redundant, env)  # type: ignore[arg-type]
+        validate_assignment(redundant, env)  # type: ignore[arg-type]  # wrong on purpose
 
 
 def test_assignment_type_checks_for_bool_and_bitvectors(govcon: Rubric) -> None:

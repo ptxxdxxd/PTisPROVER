@@ -414,7 +414,7 @@ def test_json_null_is_named_null() -> None:
 
 def test_top_level_must_be_a_table() -> None:
     with pytest.raises(RubricError) as exc:
-        rubric_from_dict([])  # type: ignore[arg-type]
+        rubric_from_dict([])  # type: ignore[arg-type]  # wrong on purpose
     assert exc.value.diagnostics[0].message == "the top level must be a table, found a list"
 
 

@@ -24,7 +24,7 @@ def test_generated_parts_of_the_readme_are_current() -> None:
 
 
 def test_readme_states_the_default_budget() -> None:
-    assert f"(default {DEFAULT_BUDGET:,})" in README
+    assert f"(default {DEFAULT_BUDGET:,} Z3 resource units)" in README
 
 
 def test_readme_exit_code_table_matches_the_cli() -> None:

@@ -18,13 +18,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
-      - run: python -m pip install -e '.[dev]'
-      - run: ruff check .
-      - run: ruff format --check .
-      - run: mypy
+      - run: uv sync --locked
+      - run: uv run --locked ruff check .
+      - run: uv run --locked ruff format --check .
+      - run: uv run --locked mypy
 
   test:
     name: Tests (Python ${{ matrix.python-version }})
@@ -35,11 +37,13 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: ${{ matrix.python-version }}
-      - run: python -m pip install -e '.[dev]'
-      - run: pytest --cov --cov-report=term-missing
+      - run: uv sync --locked
+      - run: uv run --locked pytest --cov --cov-report=term-missing
         env:
           HYPOTHESIS_PROFILE: ci
 
@@ -48,48 +52,56 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
-      - run: python -m pip install -e . playwright==1.63.0
-      - run: python -m playwright install --with-deps chromium
-      - run: python scripts/check_html.py examples/reports/*.html
+      - run: uv sync --locked
+      - run: uv run --locked playwright install --with-deps chromium
+      - run: uv run --locked scripts/check_html.py examples/reports/*.html
 
   cross-solver:
     name: Second opinion from cvc5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
-      - run: python -m pip install -e '.[dev]'
-      - run: python scripts/cross_check.py --strict examples/*.toml tests/rubrics/original/*.toml
+      - run: uv sync --locked
+      - run: uv run --locked scripts/cross_check.py --strict examples/*.toml tests/rubrics/original/*.toml
 
   planted-bugs:
     name: Planted bugs are caught
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
-      - run: python -m pip install -e '.[dev]'
-      - run: python scripts/mutation_check.py
+      - run: uv sync --locked
+      - run: uv run --locked scripts/mutation_check.py
 
   package:
     name: Build and install the wheel
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: "3.13"
-      - run: python -m pip wheel . --no-deps --wheel-dir dist
-      - run: python -m venv /tmp/installed && /tmp/installed/bin/pip install dist/*.whl
+      - run: uv build
+      - run: uv venv /tmp/installed && uv pip install --python /tmp/installed dist/*.whl
       - name: Run the installed command outside the source tree
+        working-directory: /tmp
         run: |
-          cd /tmp
           /tmp/installed/bin/ptisprover --version
           /tmp/installed/bin/ptisprover schema > /dev/null
           /tmp/installed/bin/ptisprover check "$GITHUB_WORKSPACE/examples/coding_agent_fixed.toml"

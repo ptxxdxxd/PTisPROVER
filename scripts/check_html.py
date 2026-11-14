@@ -2,8 +2,8 @@
 
     python scripts/check_html.py examples/reports/*.html [--screenshots DIR]
 
-Needs Playwright (``pip install playwright && playwright install chromium``).
-A Content-Security-Policy violation shows up as a console error, so this also
+Playwright is in the dev dependency group; ``uv run playwright install chromium`` fetches the
+browser once. A Content-Security-Policy violation shows up as a console error, so this also
 checks that the report's stylesheet hash matches.
 """
 
@@ -12,8 +12,15 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import Literal
 
-from playwright.sync_api import ConsoleMessage, sync_playwright
+from playwright.sync_api import ConsoleMessage, Error, sync_playwright
+
+VIEWS: tuple[tuple[Literal["light", "dark"], int], ...] = (
+    ("light", 1100),
+    ("dark", 1100),
+    ("light", 390),
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -26,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     failures = 0
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=args.executable)
-        for scheme, width in (("light", 1100), ("dark", 1100), ("light", 390)):
+        for scheme, width in VIEWS:
             page = browser.new_page(viewport={"width": width, "height": 900}, color_scheme=scheme)
             label = f"{scheme}-{width}"
             for report in args.reports:
@@ -35,8 +42,11 @@ def main(argv: list[str] | None = None) -> int:
                 def on_console(message: ConsoleMessage, sink: list[str] = messages) -> None:
                     sink.append(f"console {message.type}: {message.text}")
 
+                def on_page_error(error: Error, sink: list[str] = messages) -> None:
+                    sink.append(f"error: {error}")
+
                 page.on("console", on_console)
-                page.on("pageerror", lambda error, sink=messages: sink.append(f"error: {error}"))
+                page.on("pageerror", on_page_error)
                 page.goto(report.resolve().as_uri())
                 page.wait_for_load_state("load")
                 styled = page.evaluate(
@@ -55,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"      {message}")
                 failures += bool(messages)
                 page.remove_listener("console", on_console)
+                page.remove_listener("pageerror", on_page_error)
             page.close()
         browser.close()
     return 1 if failures else 0

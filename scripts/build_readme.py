@@ -80,17 +80,18 @@ def evidence() -> str:
         raise SystemExit(f"cross-check did not pass:\n{completed.stdout}{completed.stderr}")
     return "\n".join(
         [
-            f"- **Against brute force.** {match.group(1)} generated rubrics small enough to list "
-            "every outcome; each answer the solver gives must match the answer found by listing "
-            "them. (On CI the generator is seeded, so it is the same set each run.)",
-            f"- **Against an evaluator that shares no code.** {text_count} more rubrics are "
-            "generated as text alongside an equivalent Python expression. The text goes through "
-            "the loader, parser, type checker and solver; the Python is run with `eval` over "
-            "every outcome; the findings must match.",
-            f"- **Against a second solver.** Every query can be exported as SMT-LIB2 "
-            f"(`--emit-smt2`). cvc5 {summary.group(1)} agrees with Z3 "
-            f"{z3.get_version_string()} on all {summary.group(2)} queries produced by the "
-            f"{len(EXAMPLES)} examples and {len(FIXTURES)} test fixtures.",
+            f"Each test run generates {match.group(1)} rubrics small enough to list every outcome, "
+            "and every answer the solver gives must match the answer found by listing them. On CI "
+            "the generator is seeded, so it is the same set each run.",
+            "",
+            f"Another {text_count} rubrics are generated as text together with an equivalent "
+            "Python expression. The text goes through the loader, parser, type checker and "
+            "solver; the Python expression is run with `eval` over every outcome. This second "
+            "evaluator shares no code with the package, and the findings must match.",
+            "",
+            f"Every query can be exported as SMT-LIB2 with `--emit-smt2`. cvc5 {summary.group(1)} "
+            f"agrees with Z3 {z3.get_version_string()} on all {summary.group(2)} queries that the "
+            f"{len(EXAMPLES)} examples and {len(FIXTURES)} test fixtures produce.",
         ]
     )
 

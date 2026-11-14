@@ -1,17 +1,17 @@
 # PTisPROVER
 
-Find reward hacks, dead criteria and contradictions in a grading rubric before you train or
-evaluate a model with it.
-
-A rubric that scores model outputs is a specification, and specifications have bugs. If the
-cheapest way to a high score is not the behaviour you wanted, a model under optimisation
-pressure will find it. PTisPROVER reads the rubric, asks an SMT solver the questions a
-careful reviewer would ask, and answers each one with a proof, a concrete counterexample, or
-an honest "could not decide".
+PTisPROVER reads a rubric used to grade model outputs and asks the Z3 SMT solver whether it
+can be gamed, whether each criterion can actually pay and fail, and whether a perfect score is
+reachable at all.
 
 ![HTML report for the coding-agent example](docs/images/report-coding-agent.png)
 
-## An example
+A rubric that scores model outputs is a specification, and specifications have bugs. If the
+cheapest way to a high score is not the behaviour you wanted, a model under optimisation
+pressure will find it. Each question gets one of three answers: a proof, a concrete outcome
+that shows the problem, or "could not decide" with the reason.
+
+## Example
 
 This rubric grades a coding agent's bug-fix patch. It rewards a passing test suite and says,
 as an invariant, that the agent must not edit the tests. Nothing in the scoring enforces that.
@@ -71,47 +71,31 @@ $ echo $?
 zeroes the score when the tests are modified. The same check then proves that breaking the
 invariant can earn nothing.
 
-## What it checks
+## Install
 
-| Check | Question | Fails when |
-|---|---|---|
-| Possible outcomes | Does any outcome satisfy the bounds and assumptions? | None does: every other answer would be vacuous, so the rest is skipped |
-| Perfect score | Can any outcome score 1? | None can. The report lists a set of requirements that conflict, shrunk until removing any one of them removes the conflict |
-| Reward hacking | For each invariant: what is the highest score an outcome can get while breaking it? | That score reaches `exploit_threshold`. The report shows the outcome |
-| Criterion range | Can each criterion both pay and fail? | It can never pay (dead) or always pays (free reward) |
-| Overlapping criteria | Does one criterion pay whenever another does? | Never fails; it warns, because tiers are often intentional |
-| Penalty range | Can each penalty both fire and stay off? | It always fires. Never firing is a warning |
-
-Every result is one of `pass`, `warn`, `fail`, `inconclusive` or `skipped`. The verdict is
-`fail` if anything failed, otherwise `inconclusive` if anything that could hide a failure was
-left undecided, otherwise `pass`. [docs/semantics.md](docs/semantics.md) gives the exact
-solver query behind each check.
-
-## What it does not prove
-
-- **That your variables measure the right thing.** The solver reasons about the outcomes you
-  declare. If `tests_passed` is computed by a script the model can tamper with, that is
-  outside the rubric and outside this tool, unless you model it as a variable and an invariant.
-- **Anything about a real model.** It finds what the rubric permits, not what a model will do.
-- **Multi-step behaviour.** Each check looks at one outcome, not a trajectory.
-- **Nonlinear real arithmetic in general.** Conditions like `x * y > 1` are accepted, but the
-  solver may not decide them within its budget. Such results are reported as inconclusive.
-- **The smallest conflict.** A reported conflict is irreducible (no item can be dropped), which
-  is not always the conflict with the fewest items.
-
-## Install and run
-
-Python 3.11 or newer.
+Python 3.11 or newer. The package is not on PyPI; install it from a checkout of this
+repository:
 
 ```bash
-pip install -e .
+python -m pip install .
+```
+
+The only runtime dependency is `z3-solver`, pinned to one release (see Limitations).
+
+## Usage
+
+```bash
 ptisprover check examples/coding_agent.toml
 ptisprover check examples/coding_agent.toml --format html -o report.html
 ptisprover check examples/coding_agent.toml --format json
+ptisprover check examples/coding_agent.toml --emit-smt2 queries/
 ptisprover schema > rubric.schema.json
 ```
 
-Exit codes make it usable as a CI gate:
+`--budget N` sets the solver work allowed per query (default 5,000,000 Z3 resource units).
+`--fail-on-warning` turns warnings into a non-zero exit.
+
+The exit code makes it usable as a CI gate:
 
 | Code | Meaning |
 |---|---|
@@ -127,8 +111,11 @@ From Python:
 from ptisprover import load_rubric, prove
 
 proof = prove(load_rubric("examples/coding_agent.toml"))
-print(proof.report.verdict)  # fail
+print(proof.report.verdict)
 ```
+
+`proof.report` holds the findings and serialises with `to_json()`; `proof.queries` is the log
+of solver calls.
 
 ## Writing a rubric
 
@@ -154,7 +141,23 @@ rubric.toml: criteria["tests_pass"].when:1:14: '=' is not an operator; use '==' 
 ```
 
 Numbers are exact. `0.3 + 0.6 + 0.1` is exactly 1 here, which it is not in floating point, and
-counterexamples are printed as decimals or fractions (`1/3`), never rounded.
+outcomes are printed as decimals or fractions (`1/3`), never rounded.
+
+## What it checks
+
+| Check | Question | Fails when |
+|---|---|---|
+| Possible outcomes | Does any outcome satisfy the bounds and assumptions? | None does: every other answer would be vacuous, so the rest is skipped |
+| Perfect score | Can any outcome score 1? | None can. The report lists a set of requirements that conflict, shrunk until removing any one of them removes the conflict |
+| Reward hacking | For each invariant: what is the highest score an outcome can get while breaking it? | That score reaches `exploit_threshold`. The report shows the outcome |
+| Criterion range | Can each criterion both pay and fail? | It can never pay (dead) or always pays (free reward) |
+| Overlapping criteria | Does one criterion pay whenever another does? | Never fails; it warns, because tiers are often intentional |
+| Penalty range | Can each penalty both fire and stay off? | It always fires. Never firing is a warning |
+
+Every result is one of `pass`, `warn`, `fail`, `inconclusive` or `skipped`. The verdict is
+`fail` if anything failed, otherwise `inconclusive` if anything that could hide a failure was
+left undecided, otherwise `pass`. [docs/semantics.md](docs/semantics.md) gives the exact
+solver query behind each check.
 
 ## How it works
 
@@ -164,39 +167,43 @@ rubric file ─ loader ─ parser ─ type checker ─┬─ Z3 encoding ─ one
                                               └─ reference evaluator (plain Python) ─ replays ──┘
 ```
 
-- **Two implementations of the scoring rule.** The solver's encoding and a plain-Python
-  evaluator are separate code that share only the parser and type checker. Every outcome
-  that appears in a report or settles a question is re-scored by the evaluator; if the two
-  disagree, the run stops with an internal error instead of a result.
-- **Undecided is never passed.** A question the solver cannot settle is reported as such.
-- **Budgets are solver work, not seconds.** Each query gets a fixed number of Z3 resource
-  units (default 5,000,000), so the same rubric gives the same report on an idle machine and
-  a loaded one. The Z3 version is pinned because the unit is specific to a Z3 build. This has
-  been checked on Linux x86-64 across Python 3.11 to 3.13; other platforms are untested.
-- **The worst exploit, not the first.** After finding an outcome that breaks an invariant, the
-  solver is asked for one that scores strictly higher, until it proves there is none.
+The score is computed twice, by the Z3 encoding and by a plain-Python evaluator; the two share
+only the parser and type checker. Every outcome that appears in a report or settles a question
+is re-scored by the evaluator, and if the two disagree the run stops with exit code 4 instead
+of printing a result.
+
+For reward hacking, finding one outcome that breaks an invariant is not enough. The solver is
+then asked for an outcome that scores strictly higher, until it proves there is none, so the
+report shows the worst case.
+
+Budgets count solver work, not seconds. Each query gets a fixed number of Z3 resource units,
+so the same rubric produces the same report on an idle machine and a loaded one.
 
 ## How it is tested
 
 <!-- BEGIN GENERATED: evidence -->
-- **Against brute force.** 500 generated rubrics small enough to list every outcome; each answer the solver gives must match the answer found by listing them. (On CI the generator is seeded, so it is the same set each run.)
-- **Against an evaluator that shares no code.** 300 more rubrics are generated as text alongside an equivalent Python expression. The text goes through the loader, parser, type checker and solver; the Python is run with `eval` over every outcome; the findings must match.
-- **Against a second solver.** Every query can be exported as SMT-LIB2 (`--emit-smt2`). cvc5 1.4.2 agrees with Z3 5.4.1 on all 84 queries produced by the 5 examples and 4 test fixtures.
+Each test run generates 500 rubrics small enough to list every outcome, and every answer the solver gives must match the answer found by listing them. On CI the generator is seeded, so it is the same set each run.
+
+Another 300 rubrics are generated as text together with an equivalent Python expression. The text goes through the loader, parser, type checker and solver; the Python expression is run with `eval` over every outcome. This second evaluator shares no code with the package, and the findings must match.
+
+Every query can be exported as SMT-LIB2 with `--emit-smt2`. cvc5 1.4.2 agrees with Z3 5.4.1 on all 84 queries that the 5 examples and 4 test fixtures produce.
 <!-- END GENERATED: evidence -->
+
+Beyond the generated cases:
 
 - `scripts/mutation_check.py` plants a fixed list of known bugs in a copy of the source, one
   at a time, and checks that tests with fixed inputs fail for each. It is a spot check, not
   full mutation testing.
-- Parsers and loaders are fuzzed with generated input. The crashes an outside review found
+- The loaders and parser are fuzzed with generated input. The crashes an outside review found
   (binary files, numbers thousands of digits long, deeply nested data, unwritable output
-  paths) are now fixed tests.
-- Reports are compared byte for byte across separate processes.
+  paths) are fixed tests.
+- Reports from separate processes are compared byte for byte.
 - `scripts/check_html.py` opens every HTML report in headless Chromium and fails on any
   console message. The report has no scripts; its stylesheet is allowed by hash in a
   Content-Security-Policy.
 
-Solver work for the bundled examples (the same wherever this Z3 build runs;
-`scripts/benchmark.py` adds wall-clock times for your machine):
+Solver work for the bundled examples. `scripts/benchmark.py` adds wall-clock times for your
+machine.
 
 <!-- BEGIN GENERATED: examples -->
 | Rubric | Verdict | Solver queries | Work units |
@@ -210,17 +217,36 @@ Solver work for the bundled examples (the same wherever this Z3 build runs;
 What each example shows is in [examples/README.md](examples/README.md).
 <!-- END GENERATED: examples -->
 
+## Limitations
+
+- It reasons about the variables you declare, not about what they measure. If
+  `tests_passed` comes from a script the model can tamper with, that is outside the rubric
+  and outside this tool, unless you model the tampering as a variable and an invariant.
+- It finds what a rubric permits, not what any particular model will do.
+- Each check looks at one outcome, not a multi-step trajectory.
+- Nonlinear real arithmetic such as `x * y > 1` is accepted, but the solver often cannot decide
+  it within the budget, and those findings come back inconclusive.
+- A reported conflict is irreducible (no requirement can be dropped), which is not always the
+  conflict with the fewest requirements.
+- Bit-vectors support `& | ^`, equality and unsigned ordering only, no arithmetic.
+- The budget bounds solver work, not wall-clock time. There is no timeout.
+- Z3's resource units are specific to one Z3 build, which is why `z3-solver` is pinned
+  exactly. Identical reports have been checked on Linux x86-64 with Python 3.11 to 3.13;
+  macOS and Windows are untested.
+- The HTML report has been checked in Chromium only.
+
 ## Development
 
-```bash
-python -m venv .venv && . .venv/bin/activate
-pip install -e '.[dev]'
-ruff check . && ruff format --check . && mypy && pytest --cov
+Uses [uv](https://docs.astral.sh/uv/); `uv.lock` pins every tool.
 
-python scripts/build_examples.py   # regenerate examples/reports and examples/README.md
-python scripts/build_readme.py     # regenerate the measured parts of this file
-python scripts/cross_check.py --strict examples/*.toml
-python scripts/mutation_check.py
+```bash
+uv sync --locked
+uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest --cov
+
+uv run scripts/build_examples.py   # regenerate examples/reports and examples/README.md
+uv run scripts/build_readme.py     # regenerate the measured parts of this file
+uv run scripts/cross_check.py --strict examples/*.toml
+uv run scripts/mutation_check.py
 ```
 
 The measured parts of this file are written by `scripts/build_readme.py`, and the test suite

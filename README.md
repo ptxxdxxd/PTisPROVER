@@ -236,3 +236,11 @@ sample rubrics are in `tests/rubrics/original/`.
 ## Licence
 
 No licence has been chosen yet. Until one is added, all rights are reserved.
+
+---
+
+```
+ .-.
+(o o)  PTisDEV
+ |=|
+```

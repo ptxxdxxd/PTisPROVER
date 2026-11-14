@@ -240,7 +240,10 @@ No licence has been chosen yet. Until one is added, all rights are reserved.
 ---
 
 ```
- .-.
-(o o)  PTisDEV
- |=|
+   _____
+  /     \
+ | () () |
+  \  ^  /
+   |||||    PTisDEV
+   '''''
 ```

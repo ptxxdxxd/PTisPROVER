@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from hypothesis import settings
 
@@ -9,7 +8,3 @@ from hypothesis import settings
 settings.register_profile("ci", derandomize=True, max_examples=500, deadline=None)
 settings.register_profile("dev", max_examples=200, deadline=None)
 settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "dev"))
-
-RUBRICS = Path(__file__).parent / "rubrics"
-ORIGINAL = RUBRICS / "original"
-EXAMPLES = Path(__file__).parent.parent / "examples"

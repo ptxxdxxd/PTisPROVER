@@ -17,7 +17,7 @@ from ptisprover.model import Rubric
 from ptisprover.prover import prove
 from ptisprover.report import Check, Finding, Report, Status
 from ptisprover.smt import Answer, Query, Reply, Requirement, Session
-from tests.conftest import ORIGINAL
+from tests.repo_paths import ORIGINAL
 
 HEADER = 'id = "t"\nexploit_threshold = 0.85\n'
 

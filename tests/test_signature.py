@@ -9,8 +9,8 @@ import pytest
 
 from ptisprover.cli import main
 from ptisprover.signature import AUTHOR, TAG
+from tests.repo_paths import ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = str(ROOT / "examples" / "coding_agent.toml")
 # A line of the drawing that no report, schema or query could contain by accident.
 MARK = "|  ()   ()  |"

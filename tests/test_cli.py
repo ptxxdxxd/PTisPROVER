@@ -12,7 +12,7 @@ import pytest
 from ptisprover import __version__
 from ptisprover.cli import main
 from ptisprover.errors import InternalError
-from tests.conftest import ORIGINAL
+from tests.repo_paths import ORIGINAL
 
 LOOPHOLE = str(ORIGINAL / "loophole_volume.toml")
 GOVCON = str(ORIGINAL / "govcon_quote.toml")

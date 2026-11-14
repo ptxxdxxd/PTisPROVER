@@ -10,7 +10,7 @@ from ptisprover.loader import load_rubric, loads_toml
 from ptisprover.model import Rubric
 from ptisprover.sorts import INT, REAL, BitVecSort, Sort
 from ptisprover.typecheck import check_condition
-from tests.conftest import ORIGINAL
+from tests.repo_paths import ORIGINAL
 
 F = Fraction
 

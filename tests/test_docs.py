@@ -8,8 +8,8 @@ from pathlib import Path
 
 from ptisprover import cli, exact, lexer, parser, prover, smt
 from ptisprover.smt import DEFAULT_BUDGET
+from tests.repo_paths import ROOT
 
-ROOT = Path(__file__).resolve().parent.parent
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 
 

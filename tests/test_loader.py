@@ -16,7 +16,7 @@ from hypothesis import strategies as st
 from ptisprover.errors import RubricError
 from ptisprover.loader import load_rubric, loads_json, loads_toml, rubric_from_dict
 from ptisprover.sorts import BOOL, INT, REAL, BitVecSort
-from tests.conftest import ORIGINAL
+from tests.repo_paths import ORIGINAL
 from tests.strategies import plausible_rubrics, rubric_like_dicts
 
 BASE_TOML = """

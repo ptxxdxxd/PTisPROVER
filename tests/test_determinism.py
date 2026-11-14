@@ -11,9 +11,9 @@ import z3
 
 from ptisprover.loader import load_rubric
 from ptisprover.prover import prove
-from tests.conftest import EXAMPLES, ORIGINAL
+from tests.repo_paths import EXAMPLES, ORIGINAL
 
-RUBRICS = sorted(ORIGINAL.glob("*.toml")) + sorted(EXAMPLES.glob("*.toml"))
+RUBRIC_FILES = sorted(ORIGINAL.glob("*.toml")) + sorted(EXAMPLES.glob("*.toml"))
 
 SCRIPT = (
     "import sys; from ptisprover import load_rubric, prove; "
@@ -38,7 +38,7 @@ def test_reports_are_identical_across_processes(path: Path) -> None:
     assert report_in_fresh_process(path) == here
 
 
-@pytest.mark.parametrize("path", RUBRICS, ids=lambda p: p.stem)
+@pytest.mark.parametrize("path", RUBRIC_FILES, ids=lambda p: p.stem)
 def test_work_does_not_depend_on_when_python_frees_z3_objects(
     monkeypatch: pytest.MonkeyPatch, path: Path
 ) -> None:
@@ -53,7 +53,7 @@ def test_work_does_not_depend_on_when_python_frees_z3_objects(
     assert prove(load_rubric(path)).report.to_json() == expected
 
 
-@pytest.mark.parametrize("path", RUBRICS, ids=lambda p: p.stem)
+@pytest.mark.parametrize("path", RUBRIC_FILES, ids=lambda p: p.stem)
 def test_exporting_smt2_does_not_change_the_report(path: Path) -> None:
     rubric = load_rubric(path)
     assert prove(rubric, keep_smt2=True).report.to_json() == prove(rubric).report.to_json()

@@ -22,7 +22,7 @@ from ptisprover.report import (
     SolverStats,
     Status,
 )
-from tests.conftest import ORIGINAL
+from tests.repo_paths import ORIGINAL
 
 STATS = SolverStats("z3 test", 1000, 3, 42)
 

@@ -12,9 +12,8 @@ import pytest
 from ptisprover.cli import main
 from ptisprover.loader import load_rubric, loads_toml
 from ptisprover.prover import prove
-from tests.conftest import ORIGINAL
+from tests.repo_paths import ORIGINAL, ROOT
 
-ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "cross_check.py"
 CONTRADICTORY = ORIGINAL / "contradictory_pricing.toml"
 

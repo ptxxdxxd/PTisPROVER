@@ -12,7 +12,7 @@ from ptisprover.report import (
     json_value,
     verdict_of,
 )
-from tests.conftest import ORIGINAL
+from tests.repo_paths import ORIGINAL
 
 
 def finding(status: Status) -> Finding:

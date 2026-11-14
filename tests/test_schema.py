@@ -15,7 +15,7 @@ from ptisprover import loader
 from ptisprover.errors import RubricError
 from ptisprover.lexer import KEYWORDS
 from ptisprover.schema import rubric_schema_text
-from tests.conftest import ORIGINAL
+from tests.repo_paths import ORIGINAL
 
 SCHEMA: dict[str, Any] = json.loads(rubric_schema_text())
 VALIDATOR = Draft202012Validator(SCHEMA)

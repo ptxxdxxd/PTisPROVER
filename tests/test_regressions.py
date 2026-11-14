@@ -8,7 +8,7 @@ from fractions import Fraction
 from ptisprover.loader import load_rubric, loads_json, loads_toml
 from ptisprover.prover import prove
 from ptisprover.report import Check, Report, Status
-from tests.conftest import ORIGINAL
+from tests.repo_paths import ORIGINAL
 
 FERMAT = """
 id = "fermat"

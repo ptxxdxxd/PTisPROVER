@@ -5,16 +5,13 @@ from __future__ import annotations
 import subprocess
 import sys
 from fractions import Fraction
-from pathlib import Path
 
 import pytest
 
 from ptisprover.loader import load_rubric
 from ptisprover.prover import prove
 from ptisprover.report import Check, Status
-
-ROOT = Path(__file__).resolve().parent.parent
-EXAMPLES = ROOT / "examples"
+from tests.repo_paths import EXAMPLES, ROOT
 
 
 def test_committed_example_reports_are_current() -> None:

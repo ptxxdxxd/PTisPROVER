@@ -76,3 +76,20 @@ jobs:
           python-version: "3.13"
       - run: python -m pip install -e '.[dev]'
       - run: python scripts/mutation_check.py
+
+  package:
+    name: Build and install the wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: python -m pip wheel . --no-deps --wheel-dir dist
+      - run: python -m venv /tmp/installed && /tmp/installed/bin/pip install dist/*.whl
+      - name: Run the installed command outside the source tree
+        run: |
+          cd /tmp
+          /tmp/installed/bin/rubric-prover --version
+          /tmp/installed/bin/rubric-prover schema > /dev/null
+          /tmp/installed/bin/rubric-prover check "$GITHUB_WORKSPACE/examples/coding_agent_fixed.toml"

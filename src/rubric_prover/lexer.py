@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from rubric_prover.errors import RubricError
+from rubric_prover.exact import MAX_DIGITS
 
 MAX_EXPRESSION_LENGTH = 10_000
 
@@ -112,6 +113,10 @@ def _number(text: str, start: int) -> Token:
     if tail.end() > end:
         bad = text[start : tail.end()]
         raise RubricError.single(f"invalid number '{bad}'", text=text, span=(start, tail.end()))
+    if end - start > MAX_DIGITS:
+        raise RubricError.single(
+            f"number is longer than {MAX_DIGITS} characters", text=text, span=(start, end)
+        )
     integer_part = match.group("int")
     if integer_part is not None and len(integer_part) > 1 and integer_part.startswith("0"):
         raise RubricError.single(

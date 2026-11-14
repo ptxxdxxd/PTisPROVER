@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from rubric_prover.errors import Diagnostic, RubricError
-from rubric_prover.exact import format_number
+from rubric_prover.exact import TOO_LARGE, format_number, within_limits
 from rubric_prover.lexer import KEYWORDS
 from rubric_prover.model import Condition, Criterion, Invariant, Penalty, Rubric, Variable
 from rubric_prover.parser import parse_expression
@@ -54,7 +54,10 @@ _T = TypeVar("_T")
 def load_rubric(path: str | os.PathLike[str]) -> Rubric:
     """Load a ``.toml`` or ``.json`` rubric file."""
     file = Path(path)
-    text = file.read_text(encoding="utf-8")
+    try:
+        text = file.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        raise RubricError.single("the file is not UTF-8 text") from None
     suffix = file.suffix.lower()
     if suffix == ".toml":
         return loads_toml(text)
@@ -68,6 +71,10 @@ def loads_toml(text: str) -> Rubric:
         data = tomllib.loads(text, parse_float=Decimal)
     except tomllib.TOMLDecodeError as exc:
         raise RubricError.single(f"invalid TOML: {exc}") from None
+    except ValueError:  # Python refuses to read integers of several thousand digits
+        raise RubricError.single(f"invalid TOML: {TOO_LARGE}") from None
+    except RecursionError:
+        raise RubricError.single("invalid TOML: values are nested too deeply") from None
     return rubric_from_dict(data)
 
 
@@ -85,6 +92,10 @@ def loads_json(text: str) -> Rubric:
         ) from None
     except _JsonContentError as exc:
         raise RubricError.single(f"invalid JSON: {exc}") from None
+    except ValueError:  # Python refuses to read integers of several thousand digits
+        raise RubricError.single(f"invalid JSON: {TOO_LARGE}") from None
+    except RecursionError:
+        raise RubricError.single("invalid JSON: values are nested too deeply") from None
     if not isinstance(data, dict):
         raise RubricError.single(f"the top level must be an object, found {_kind(data)}")
     return rubric_from_dict(data)
@@ -258,6 +269,9 @@ class _Builder:
             return self._number(value, where)
         if isinstance(value, bool) or not isinstance(value, int):
             self._error(where, f"{sort} bounds must be whole numbers, found {_show(value)}")
+            return None
+        if not within_limits(value):
+            self._error(where, TOO_LARGE)
             return None
         if isinstance(sort, IntSort):
             return value
@@ -445,11 +459,12 @@ class _Builder:
         if isinstance(value, bool):
             self._error(path, "expected a number, found true/false")
             return None
-        if isinstance(value, int):
-            return Fraction(value)
-        if isinstance(value, Decimal):
-            if not value.is_finite():
+        if isinstance(value, int | Decimal):
+            if isinstance(value, Decimal) and not value.is_finite():
                 self._error(path, f"must be a finite number, found {value}")
+                return None
+            if not within_limits(value):
+                self._error(path, TOO_LARGE)
                 return None
             return Fraction(value)
         if isinstance(value, float):
@@ -474,6 +489,8 @@ class _Builder:
 
 
 def _show(value: Any) -> str:
+    if isinstance(value, int) and not isinstance(value, bool) and not within_limits(value):
+        return "a very large number"
     if isinstance(value, str):
         return repr(value)
     if isinstance(value, Decimal):

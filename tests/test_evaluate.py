@@ -239,3 +239,17 @@ def test_evaluator_rejects_values_of_the_wrong_kind() -> None:
         evaluate(
             ir.BitOp("&", ir.Var("m", BitVecSort(8)), ir.Const(BitVecSort(8), 1)), {"m": F(1, 2)}
         )
+
+
+def test_bit_vector_bounds_are_enforced_on_both_sides() -> None:
+    rubric = loads_toml(
+        'id = "b"\nexploit_threshold = 1\n'
+        '[variables]\nlevel = { type = "bv8", min = 10, max = 200 }\n'
+        '[[criteria]]\nid = "c"\nweight = 1\nwhen = "level > 0"\n'
+    )
+    assert [assess(rubric, {"level": v}).in_bounds for v in (9, 10, 200, 201)] == [
+        False,
+        True,
+        True,
+        False,
+    ]

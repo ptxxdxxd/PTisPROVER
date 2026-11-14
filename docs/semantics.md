@@ -51,15 +51,18 @@ Typing rules:
 - An integer literal takes the type of the operand it meets, and must fit if that is a
   bit-vector. A decimal literal is a `real`.
 - There is no division.
-- An expression can be at most 10,000 characters long and 100 levels deep.
+- An expression can be at most 10,000 characters long, with at most 200 levels of nested or
+  chained operators (a chain such as `a or b or c` counts one level per operator) and number
+  literals of at most 100 characters.
 
 ## Checks
 
 Each question below is one solver query: "is there an outcome such that …". The solver
 answers **sat** (with an outcome), **unsat** (a proof that none exists) or **unknown** (the
-budget ran out). Before any sat answer is used, its outcome is re-scored by the reference
-evaluator, which must agree that the outcome is admissible, that it has the property asked
-for, and on its score.
+budget ran out). Before an outcome is reported or used to settle a question, it is re-scored
+by the reference evaluator, which must agree that the outcome is admissible, that it has the
+property asked for, and on its score. The one sat answer used without this replay is inside
+conflict shrinking (below), where it only decides that an item stays in the conflict.
 
 An outcome found for one question can settle a later "is there an outcome such that …"
 question without another query, if it happens to have the property asked for.
@@ -94,7 +97,8 @@ so only finitely many scores exist, and each step is strictly higher. It is also
 
 - *s* ≥ *t*: fail, whether or not the maximum was proven. The outcome shown reaches *s*.
 - *s* < *t* and the maximum is proven: pass.
-- *s* < *t* and the last query was unknown: inconclusive.
+- *s* < *t* and the search stopped for any other reason (an unknown answer, an irrational
+  outcome, or the step cap): inconclusive, and the message says which.
 
 With no invariants this check has nothing to ask. That is reported as a warning, not a pass.
 
@@ -145,8 +149,10 @@ it could be hiding:
 - If it would only be a warning (an overlap, a penalty that never fires), the finding is a
   warning that says the question was not decided.
 
-Nonlinear real arithmetic can also produce an outcome with an irrational value. Such an
-outcome cannot be re-scored exactly, so it is not used: the finding is inconclusive.
+A question can be left undecided for three reasons, and the message names the one that
+applied: the budget ran out; the solver's outcome has an irrational value (possible with
+nonlinear real arithmetic), which cannot be re-scored exactly and so is not used; or the
+exploit search reached its step cap.
 
 ## Budgets and reproducibility
 
@@ -156,8 +162,12 @@ same answers, and the same report byte for byte, on any machine. `z3-solver` is 
 exact version for this reason: a different build may count work differently, and a query near
 the budget could change from decided to unknown.
 
-Raising `--budget` can turn an inconclusive result into a decided one. It cannot change a
-decided result.
+`--budget` accepts 1 to 4,294,967,295, the range of Z3's counter. Raising it can decide a
+question that was undecided for lack of budget. It does not help with the other two causes
+above, and it cannot change a decided result.
+
+Reproducibility has been checked on Linux x86-64 with Python 3.11, 3.12 and 3.13. Whether
+Z3's builds for other platforms count work identically is untested.
 
 ## Verdict and exit code
 

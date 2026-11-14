@@ -274,7 +274,10 @@ def finite_rubrics(draw: st.DrawFn) -> Rubric:
         elif kind == "bool":
             variables.append(Variable(name, BOOL))
         else:
-            variables.append(Variable(name, BitVecSort(int(kind[2:]))))
+            sort = BitVecSort(int(kind[2:]))
+            lower = draw(st.one_of(st.none(), st.integers(0, sort.max_value)))
+            upper = draw(st.one_of(st.none(), st.integers(lower or 0, sort.max_value)))
+            variables.append(Variable(name, sort, lower, upper))
     env = tuple((v.name, v.sort) for v in variables)
     atoms = _comparisons_with_constants(env)
     assert atoms is not None

@@ -46,8 +46,8 @@ MUTATIONS = [
     Mutation(
         "overlap reported in the wrong direction",
         "prover.py",
-        "implies[a, b] = None if counterexample is None else not counterexample",
-        "implies[b, a] = None if counterexample is None else not counterexample",
+        "implies[a, b] = (",
+        "implies[b, a] = (",
     ),
     Mutation(
         "solver score is not floored at 0",
@@ -66,6 +66,30 @@ MUTATIONS = [
         "smt.py",
         "return z3.ULT(left, right) if unsigned else left < right",
         "return left < right",
+    ),
+    Mutation(
+        "solver reads a bit-vector 'max' as signed",
+        "smt.py",
+        'formula = z3.UGE(symbol, constant) if key == "min" else z3.ULE(symbol, constant)',
+        'formula = z3.UGE(symbol, constant) if key == "min" else symbol <= constant',
+    ),
+    Mutation(
+        "solver reads a bit-vector 'min' as signed",
+        "smt.py",
+        'formula = z3.UGE(symbol, constant) if key == "min" else z3.ULE(symbol, constant)',
+        'formula = symbol >= constant if key == "min" else z3.ULE(symbol, constant)',
+    ),
+    Mutation(
+        "replay stops checking the assumptions",
+        "prover.py",
+        "if not assessment.admissible:",
+        "if not assessment.in_bounds:",
+    ),
+    Mutation(
+        "reference evaluator ignores lower bounds",
+        "evaluate.py",
+        "(v.lower is None or _number(checked[v.name]) >= v.lower)",
+        "True",
     ),
     Mutation(
         "reference evaluator gets 'implies' wrong",

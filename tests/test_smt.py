@@ -93,7 +93,7 @@ def test_session_logs_queries_and_counts_work() -> None:
 
 def test_session_rejects_a_non_positive_budget() -> None:
     encoding = Encoding(rubric_over([Variable("x", INT)]))
-    with pytest.raises(ValueError, match="budget must be a positive number"):
+    with pytest.raises(ValueError, match="budget must be between 1 and 4294967295"):
         Session(encoding, 0)
 
 

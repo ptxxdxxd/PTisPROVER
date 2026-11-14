@@ -20,6 +20,9 @@ from rubric_prover.model import Rubric, Variable
 from rubric_prover.sorts import BOOL, INT, REAL, BitVecSort
 
 DEFAULT_BUDGET = 5_000_000
+# Z3 reads rlimit as an unsigned 32-bit number: 2**32 would mean "no limit" and 2**32 + 1
+# would mean 1.
+MAX_BUDGET = 2**32 - 1
 
 
 class Answer(Enum):
@@ -166,7 +169,9 @@ class Encoding:
         return z3.BitVecVal(value, sort.width, self.ctx)
 
     def _declare(self, variable: Variable) -> z3.ExprRef:
-        sort, name, ctx = variable.sort, variable.name, self.ctx
+        # The prefix keeps a variable called "let", "div" or "_" from colliding with a
+        # reserved word when a query is exported for another solver.
+        sort, name, ctx = variable.sort, f"var.{variable.name}", self.ctx
         if sort == BOOL:
             return z3.Bool(name, ctx)
         if sort == INT:
@@ -231,8 +236,8 @@ class Session:
     """Runs budgeted queries against one encoding and keeps a log of them."""
 
     def __init__(self, encoding: Encoding, budget: int, *, keep_smt2: bool = False) -> None:
-        if budget <= 0:
-            raise ValueError("budget must be a positive number of Z3 resource units")
+        if not 0 < budget <= MAX_BUDGET:
+            raise ValueError(f"budget must be between 1 and {MAX_BUDGET} Z3 resource units")
         self.encoding = encoding
         self.budget = budget
         self.keep_smt2 = keep_smt2

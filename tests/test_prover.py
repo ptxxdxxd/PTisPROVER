@@ -373,6 +373,10 @@ def corrupt_evaluator(
             "the reference evaluator as",
         ),
         (lambda a: dataclasses.replace(a, in_bounds=False), "outside the bounds or assumptions"),
+        (
+            lambda a: dataclasses.replace(a, assumptions_hold=False),
+            "outside the bounds or assumptions",
+        ),
         (lambda a: dataclasses.replace(a, broken=()), "does not break 'positive_margin'"),
         (lambda a: dataclasses.replace(a, firing=()), "can 'weak_risk_deduction' fire"),
     ],
@@ -518,3 +522,62 @@ def test_bit_vector_ordering_is_unsigned() -> None:
     example = only(report, Check.PERFECT_SCORE).example
     assert example is not None
     assert example.assignment["level"] in range(128, 256)
+
+
+@pytest.mark.parametrize(
+    ("bounds", "condition"),
+    [
+        # Read as signed, 'max = 200' would be -56 and allow only 128..200.
+        ("max = 200", "level < 100"),
+        # Read as signed, 'min = 100' would allow only 100..127.
+        ("min = 100", "level > 127"),
+    ],
+    ids=["max", "min"],
+)
+def test_bit_vector_bounds_are_unsigned(bounds: str, condition: str) -> None:
+    report = prove(
+        rubric(
+            f'[variables]\nlevel = {{ type = "bv8", {bounds} }}\n'
+            f'[[criteria]]\nid = "c"\nweight = 1\nwhen = "{condition}"\n'
+        )
+    )
+    assert only(report, Check.CRITERION).status is Status.PASS
+
+
+def test_the_step_limit_is_named_when_it_stops_the_search(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(prover_module, "MAX_STRENGTHENING_STEPS", 0)
+    report = prove(load_rubric(ORIGINAL / "govcon_quote.toml"))
+    finding = only(report, Check.EXPLOIT, ("no_uncapped_exposure",))
+    # Uncapped liability zeroes the score, so the first outcome found scores 0.
+    assert finding.status is Status.INCONCLUSIVE
+    assert finding.message == (
+        "breaking 'no_uncapped_exposure' scores at least 0; could not decide whether it can "
+        "reach the threshold 0.85: the search stopped after 0 improvements"
+    )
+
+
+def test_an_irrational_outcome_is_not_blamed_on_the_budget() -> None:
+    report = prove(
+        rubric(
+            '[variables]\nr = { type = "real", min = 0, max = 2 }\n'
+            '[[criteria]]\nid = "root_two"\nweight = 1\nwhen = "r * r == 2"\n'
+        )
+    )
+    message = only(report, Check.CRITERION).message
+    assert message == (
+        "could not decide whether 'root_two' can pay: the solver's outcome uses an irrational "
+        "value, which cannot be replayed exactly"
+    )
+
+
+def test_a_long_flat_chain_is_checked() -> None:
+    chain = " or ".join(f"x == {i}" for i in range(150))
+    report = prove(
+        rubric(
+            '[variables]\nx = { type = "int", min = 0, max = 500 }\n'
+            f'[[criteria]]\nid = "c"\nweight = 1\nwhen = "{chain}"\n'
+        )
+    )
+    assert only(report, Check.CRITERION).status is Status.PASS

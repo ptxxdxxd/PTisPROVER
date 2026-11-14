@@ -7,8 +7,10 @@ Exit codes: 0 pass, 1 fail, 2 inconclusive, 3 invalid input or usage,
 from __future__ import annotations
 
 import argparse
+import io
 import os
 import sys
+import traceback
 from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
@@ -22,7 +24,7 @@ from rubric_prover.prover import run_checks
 from rubric_prover.render import render_html, render_text
 from rubric_prover.report import Status
 from rubric_prover.schema import rubric_schema_text
-from rubric_prover.smt import DEFAULT_BUDGET
+from rubric_prover.smt import DEFAULT_BUDGET, MAX_BUDGET
 
 EXIT_PASS = 0
 EXIT_FAIL = 1
@@ -44,8 +46,8 @@ def _positive_int(text: str) -> int:
         value = int(text.replace("_", ""))
     except ValueError:
         raise argparse.ArgumentTypeError(f"not a whole number: {text!r}") from None
-    if value <= 0:
-        raise argparse.ArgumentTypeError("must be greater than 0")
+    if not 0 < value <= MAX_BUDGET:
+        raise argparse.ArgumentTypeError(f"must be between 1 and {MAX_BUDGET:,}")
     return value
 
 
@@ -99,7 +101,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "schema":
         sys.stdout.write(rubric_schema_text())
         return EXIT_PASS
-    return _check(args)
+    try:
+        return _check(args)
+    except Exception:
+        # Anything unexpected is a bug in this tool. It must not exit 1, which means
+        # "the rubric fails".
+        traceback.print_exc()
+        sys.stderr.write("rubric-prover: internal error (traceback above), please report it\n")
+        return EXIT_INTERNAL
 
 
 def _check(args: argparse.Namespace) -> int:
@@ -110,19 +119,24 @@ def _check(args: argparse.Namespace) -> int:
         return _input_error(f"cannot read {path}: {exc.strerror or exc}")
     except RubricError as exc:
         return _input_error("\n".join(f"{path}: {d.render()}" for d in exc.diagnostics))
+    # Find out that an output location is unusable before the solver runs, not after.
+    if args.output is not None:
+        if args.output.is_dir():
+            return _input_error(f"cannot write to {args.output}: it is a directory")
+        if not args.output.parent.is_dir():
+            return _input_error(f"cannot write to {args.output}: no such directory")
+    if args.emit_smt2 is not None:
+        try:
+            args.emit_smt2.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            return _input_error(f"cannot write to {args.emit_smt2}: {exc.strerror or exc}")
+
     try:
         proof = run_checks(rubric, budget=args.budget, keep_smt2=args.emit_smt2 is not None)
     except InternalError as exc:
         sys.stderr.write(f"rubric-prover: internal error, please report it: {exc}\n")
         return EXIT_INTERNAL
     report = proof.report
-    if args.emit_smt2 is not None:
-        directory: Path = args.emit_smt2
-        directory.mkdir(parents=True, exist_ok=True)
-        for stale in directory.glob("query-*.smt2"):
-            stale.unlink()
-        for name, text in proof.smt2_files().items():
-            (directory / name).write_text(text, encoding="utf-8")
 
     if args.format == "json":
         text = report.to_json()
@@ -130,18 +144,38 @@ def _check(args: argparse.Namespace) -> int:
         text = render_html(report, rubric, __version__)
     else:
         text = render_text(report, __version__, color=_use_color(args.color, args.output))
+    try:
+        if args.emit_smt2 is not None:
+            for stale in args.emit_smt2.glob("query-*.smt2"):
+                stale.unlink()
+            for name, query in proof.smt2_files().items():
+                _write(args.emit_smt2 / name, query)
+        if args.output is not None:
+            _write(args.output, text)
+    except OSError as exc:
+        return _input_error(f"cannot write to {exc.filename}: {exc.strerror or exc}")
     if args.output is None:
+        if args.format != "text" and isinstance(sys.stdout, io.TextIOWrapper):
+            # JSON and HTML reports are UTF-8 whatever the console's own encoding is.
+            sys.stdout.reconfigure(encoding="utf-8")
         sys.stdout.write(text)
-    else:
-        args.output.write_text(text, encoding="utf-8")
 
     if report.verdict is Status.FAIL:
         return EXIT_FAIL
     if report.verdict is Status.INCONCLUSIVE:
         return EXIT_INCONCLUSIVE
-    if args.fail_on_warning and any(f.status is Status.WARN for f in report.findings):
+    warnings = sum(1 for f in report.findings if f.status is Status.WARN)
+    if args.fail_on_warning and warnings:
+        sys.stderr.write(
+            f"rubric-prover: exit 1: --fail-on-warning is set and there are {warnings} warning(s)\n"
+        )
         return EXIT_FAIL
     return EXIT_PASS
+
+
+def _write(path: Path, text: str) -> None:
+    """Write UTF-8 with \\n line endings on every platform, so reports are byte-identical."""
+    path.write_text(text, encoding="utf-8", newline="\n")
 
 
 def _input_error(message: str) -> int:

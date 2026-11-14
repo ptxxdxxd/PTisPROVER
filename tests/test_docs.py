@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from rubric_prover import cli, lexer, parser, prover
+from rubric_prover import cli, exact, lexer, parser, prover, smt
 from rubric_prover.smt import DEFAULT_BUDGET
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -33,7 +33,7 @@ def test_readme_exit_code_table_matches_the_cli() -> None:
         (cli.EXIT_FAIL, "fail"),
         (cli.EXIT_INCONCLUSIVE, "inconclusive"),
         (cli.EXIT_INPUT, "the rubric file or the command line is invalid"),
-        (cli.EXIT_INTERNAL, "internal error"),
+        (cli.EXIT_INTERNAL, "internal error: a bug in this tool"),
     ]:
         assert f"| {code} | {meaning}" in README
 
@@ -68,7 +68,7 @@ def test_readme_python_example_runs() -> None:
 def test_semantics_document_states_the_limits_in_the_code() -> None:
     semantics = (ROOT / "docs" / "semantics.md").read_text(encoding="utf-8")
     assert f"capped at\n{prover.MAX_STRENGTHENING_STEPS} steps" in semantics
-    assert (
-        f"at most {lexer.MAX_EXPRESSION_LENGTH:,} characters long and "
-        f"{parser.MAX_DEPTH} levels deep" in semantics
-    )
+    assert f"at most {lexer.MAX_EXPRESSION_LENGTH:,} characters long" in semantics
+    assert f"at most {parser.MAX_DEPTH} levels of nested" in semantics
+    assert f"literals of at most {exact.MAX_DIGITS} characters" in semantics
+    assert f"accepts 1 to {smt.MAX_BUDGET:,}" in semantics

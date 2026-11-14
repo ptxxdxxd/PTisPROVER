@@ -60,6 +60,11 @@ def evidence() -> str:
     match = re.search(r'"DIFFERENTIAL_EXAMPLES", "(\d+)"', differential)
     if match is None:
         raise SystemExit("cannot find the differential test's example count")
+    text_test = (ROOT / "tests" / "test_text_differential.py").read_text(encoding="utf-8")
+    text_match = re.search(r'"DIFFERENTIAL_EXAMPLES", "(\d+)"', text_test)
+    if text_match is None:
+        raise SystemExit("cannot find the text differential test's example count")
+    text_count = text_match.group(1)
     result = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "cross_check.py"), "--strict"]
         + [str(p) for p in EXAMPLES + FIXTURES],
@@ -75,9 +80,13 @@ def evidence() -> str:
         raise SystemExit(f"cross-check did not pass:\n{result.stdout}{result.stderr}")
     return "\n".join(
         [
-            f"- **Against brute force.** Each test run generates {match.group(1)} small rubrics "
-            "whose outcomes can all be listed, and every answer the solver gives must match the "
-            "answer found by listing them.",
+            f"- **Against brute force.** {match.group(1)} generated rubrics small enough to list "
+            "every outcome; each answer the solver gives must match the answer found by listing "
+            "them. (On CI the generator is seeded, so it is the same set each run.)",
+            f"- **Against an evaluator that shares no code.** {text_count} more rubrics are "
+            "generated as text alongside an equivalent Python expression. The text goes through "
+            "the loader, parser, type checker and solver; the Python is run with `eval` over "
+            "every outcome; the findings must match.",
             f"- **Against a second solver.** Every query can be exported as SMT-LIB2 "
             f"(`--emit-smt2`). cvc5 {summary.group(1)} agrees with Z3 "
             f"{z3.get_version_string()} on all {summary.group(2)} queries produced by the "

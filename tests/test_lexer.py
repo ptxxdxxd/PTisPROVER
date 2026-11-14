@@ -102,3 +102,11 @@ def test_overlong_expression_is_refused_before_tokenizing() -> None:
 
 def test_expression_at_the_length_limit_is_accepted() -> None:
     assert len(tokenize("a" * MAX_EXPRESSION_LENGTH)) == 2
+
+
+def test_a_number_longer_than_the_limit_is_refused() -> None:
+    tokenize("x == " + "9" * 100)
+    with pytest.raises(RubricError) as exc:
+        tokenize("x == " + "9" * 101)
+    (diagnostic,) = exc.value.diagnostics
+    assert (diagnostic.message, diagnostic.column) == ("number is longer than 100 characters", 6)

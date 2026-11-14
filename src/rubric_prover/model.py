@@ -47,10 +47,6 @@ class Penalty:
     deduction: Fraction | None
     description: str = ""
 
-    @property
-    def zeroes_score(self) -> bool:
-        return self.deduction is None
-
 
 @dataclass(frozen=True, slots=True)
 class Invariant:

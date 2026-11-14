@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from enum import Enum
 
 import z3
 
@@ -46,6 +47,25 @@ from rubric_prover.smt import (
 MAX_STRENGTHENING_STEPS = 64
 
 _IRRATIONAL = "the solver's outcome uses an irrational value, which cannot be replayed exactly"
+
+
+class _Why(Enum):
+    """Why a question was left undecided. Only BUDGET can be cured by a larger budget."""
+
+    BUDGET = "budget"
+    IRRATIONAL = "irrational"
+    STEP_LIMIT = "step limit"
+
+
+def _undecided(why: _Why, what: str) -> str:
+    if why is _Why.BUDGET:
+        return f"could not decide within the budget whether {what}"
+    if why is _Why.IRRATIONAL:
+        return f"could not decide whether {what}: {_IRRATIONAL}"
+    return (
+        f"could not decide whether {what}: the search stopped after "
+        f"{MAX_STRENGTHENING_STEPS} improvements"
+    )
 
 
 def _pays(criterion: str, *, expected: bool = True) -> Callable[[Example], bool]:
@@ -160,18 +180,18 @@ class _Prover:
 
     def _exists(
         self, question: str, constraints: Sequence[z3.BoolRef], holds: Callable[[Example], bool]
-    ) -> bool | None:
-        """Is there an admissible outcome for which ``holds`` is true? None if undecided."""
+    ) -> bool | _Why:
+        """Is there an admissible outcome for which ``holds`` is true? Or why that is unknown."""
         if any(holds(example) for example in self.pool):
             return True
         result = self.session.ask(question, [*self._domain(), *constraints])
         if result.answer is Answer.UNSAT:
             return False
         if result.answer is Answer.UNKNOWN:
-            return None
+            return _Why.BUDGET
         example = self._replay(result, question)
         if example is None:
-            return None
+            return _Why.IRRATIONAL
         if not holds(example):
             raise InternalError(f"{question}: the solver's outcome {example.assignment} does not")
         return True
@@ -344,7 +364,7 @@ class _Prover:
                     Check.EXPLOIT,
                     Status.INCONCLUSIVE,
                     (ident,),
-                    f"could not decide within the budget whether '{ident}' can be broken",
+                    _undecided(_Why.BUDGET, f"'{ident}' can be broken"),
                 )
             )
             return
@@ -352,16 +372,17 @@ class _Prover:
         if best is None:
             self._record(Finding(Check.EXPLOIT, Status.INCONCLUSIVE, (ident,), _IRRATIONAL))
             return
-        proven = False
+        stopped: _Why | None = _Why.STEP_LIMIT  # None once the maximum is proven
         for _ in range(MAX_STRENGTHENING_STEPS):
             question = f"can breaking '{ident}' score above {format_number(best.score)}"
             above = self.encoding.score > self.encoding.rational(best.score)
             result = self.session.ask(question, [*base, above])
             if result.answer is not Answer.SAT:
-                proven = result.answer is Answer.UNSAT
+                stopped = None if result.answer is Answer.UNSAT else _Why.BUDGET
                 break
             better = self._exploit_example(result, question, ident)
             if better is None:
+                stopped = _Why.IRRATIONAL
                 break
             if better.score <= best.score:
                 raise InternalError(f"{question}: the solver's outcome scores {better.score}")
@@ -372,16 +393,15 @@ class _Prover:
             message = (
                 f"breaking '{ident}' can still score {score}, at or above the threshold {limit}"
             )
-            if proven:
+            if stopped is None:
                 message += "; nothing that breaks it scores higher"
-        elif proven:
+        elif stopped is None:
             status = Status.PASS
             message = f"breaking '{ident}' scores at most {score}, below the threshold {limit}"
         else:
             status = Status.INCONCLUSIVE
-            message = (
-                f"breaking '{ident}' scores at least {score}; could not decide within the "
-                f"budget whether it can reach the threshold {limit}"
+            message = f"breaking '{ident}' scores at least {score}; " + _undecided(
+                stopped, f"it can reach the threshold {limit}"
             )
         self._record(
             Finding(
@@ -391,7 +411,7 @@ class _Prover:
                 message,
                 example=best,
                 max_score=best.score,
-                max_proven=proven,
+                max_proven=stopped is None,
             )
         )
 
@@ -425,16 +445,12 @@ class _Prover:
                         f"'{ident}' pays for every admissible outcome: free reward",
                     )
                 )
-            elif pays is None or fails is None:
-                what = "pay" if pays is None else "fail"
-                self._record(
-                    Finding(
-                        Check.CRITERION,
-                        Status.INCONCLUSIVE,
-                        (ident,),
-                        f"could not decide within the budget whether '{ident}' can {what}",
-                    )
-                )
+            elif isinstance(pays, _Why):
+                message = _undecided(pays, f"'{ident}' can pay")
+                self._record(Finding(Check.CRITERION, Status.INCONCLUSIVE, (ident,), message))
+            elif isinstance(fails, _Why):
+                message = _undecided(fails, f"'{ident}' can fail")
+                self._record(Finding(Check.CRITERION, Status.INCONCLUSIVE, (ident,), message))
             else:
                 self._record(
                     Finding(
@@ -448,7 +464,7 @@ class _Prover:
         """Pairs where one criterion pays whenever another does."""
         encoding, ctx = self.encoding, self.encoding.ctx
         weights = {c.id: c.weight for c in self.rubric.criteria}
-        implies: dict[tuple[str, str], bool | None] = {}
+        implies: dict[tuple[str, str], bool | _Why] = {}
         for a in idents:
             for b in idents:
                 if a == b:
@@ -458,13 +474,15 @@ class _Prover:
                     [encoding.criteria[a], z3.Not(encoding.criteria[b], ctx)],
                     _pays_without(a, b),
                 )
-                implies[a, b] = None if counterexample is None else not counterexample
+                implies[a, b] = (
+                    counterexample if isinstance(counterexample, _Why) else not counterexample
+                )
         reported = False
         for i, a in enumerate(idents):
             for b in idents[i + 1 :]:
                 forward, backward = implies[a, b], implies[b, a]
                 total = format_number(weights[a] + weights[b])
-                if forward and backward:
+                if forward is True and backward is True:
                     reported = True
                     self._record(
                         Finding(
@@ -477,7 +495,7 @@ class _Prover:
                     )
                     continue
                 for x, y, holds in ((a, b, forward), (b, a, backward)):
-                    if holds:
+                    if holds is True:
                         reported = True
                         self._record(
                             Finding(
@@ -488,17 +506,10 @@ class _Prover:
                                 "intentional tiers, otherwise it double counts",
                             )
                         )
-                    elif holds is None:
+                    elif isinstance(holds, _Why):
                         reported = True
-                        self._record(
-                            Finding(
-                                Check.OVERLAP,
-                                Status.WARN,
-                                (x, y),
-                                f"could not decide within the budget whether '{y}' pays whenever "
-                                f"'{x}' does",
-                            )
-                        )
+                        message = _undecided(holds, f"'{y}' pays whenever '{x}' does")
+                        self._record(Finding(Check.OVERLAP, Status.WARN, (x, y), message))
         if not reported:
             pairs = len(implies)
             self._record(
@@ -529,15 +540,9 @@ class _Prover:
                         f"'{ident}' fires for every admissible outcome",
                     )
                 )
-            elif rests is None:
-                self._record(
-                    Finding(
-                        Check.PENALTY,
-                        Status.INCONCLUSIVE,
-                        (ident,),
-                        f"could not decide within the budget whether '{ident}' can stay off",
-                    )
-                )
+            elif isinstance(rests, _Why):
+                message = _undecided(rests, f"'{ident}' can stay off")
+                self._record(Finding(Check.PENALTY, Status.INCONCLUSIVE, (ident,), message))
             elif fires is False:
                 self._record(
                     Finding(
@@ -547,15 +552,9 @@ class _Prover:
                         f"'{ident}' never fires for any admissible outcome",
                     )
                 )
-            elif fires is None:
-                self._record(
-                    Finding(
-                        Check.PENALTY,
-                        Status.WARN,
-                        (ident,),
-                        f"could not decide within the budget whether '{ident}' can fire",
-                    )
-                )
+            elif isinstance(fires, _Why):
+                message = _undecided(fires, f"'{ident}' can fire")
+                self._record(Finding(Check.PENALTY, Status.WARN, (ident,), message))
             else:
                 self._record(
                     Finding(

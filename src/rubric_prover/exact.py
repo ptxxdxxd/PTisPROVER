@@ -5,6 +5,10 @@ from __future__ import annotations
 from decimal import Decimal
 from fractions import Fraction
 
+MAX_DIGITS = 100
+_INTEGER_LIMIT = int("1" + "0" * MAX_DIGITS)
+TOO_LARGE = f"numbers are limited to {MAX_DIGITS} digits on each side of the decimal point"
+
 
 def format_number(value: int | Fraction) -> str:
     """Render a number exactly.
@@ -35,8 +39,24 @@ def format_number(value: int | Fraction) -> str:
     return f"{sign}{digits[:-places]}.{digits[-places:]}"
 
 
-def decimal_to_fraction(value: Decimal) -> Fraction:
-    """Convert a finite Decimal to the Fraction it denotes, exactly."""
+def within_limits(value: int | Decimal) -> bool:
+    """True if a number has at most MAX_DIGITS digits on each side of the decimal point.
+
+    The limit keeps exact arithmetic cheap: without it, ``1e999999999`` in a rubric file
+    would mean building a billion-digit integer.
+    """
+    if isinstance(value, int):
+        return abs(value) < _INTEGER_LIMIT
     if not value.is_finite():
-        raise ValueError(f"not a finite number: {value}")
+        return False
+    exponent = value.as_tuple().exponent
+    assert isinstance(exponent, int)  # finite decimals have integer exponents
+    leading_digit_position: int = value.adjusted()
+    return exponent >= -MAX_DIGITS and leading_digit_position < MAX_DIGITS
+
+
+def decimal_to_fraction(value: Decimal) -> Fraction:
+    """Convert a Decimal within the size limits to the Fraction it denotes, exactly."""
+    if not within_limits(value):
+        raise ValueError(f"not a finite number within the size limits: {value}")
     return Fraction(value)

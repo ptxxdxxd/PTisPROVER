@@ -10,7 +10,7 @@ from hypothesis import strategies as st
 from rubric_prover import syntax
 from rubric_prover.errors import RubricError
 from rubric_prover.parser import MAX_DEPTH, parse_expression
-from rubric_prover.syntax import format_expr
+from tests.printer import format_expr
 from tests.strategies import syntax_trees, token_soup
 
 
@@ -88,7 +88,7 @@ def test_syntax_errors_say_what_and_where(text: str, message: str, line: int, co
     assert (diagnostic.message, diagnostic.line, diagnostic.column) == (message, line, column)
 
 
-NESTED_TOO_DEEP = f"expression is nested more than {MAX_DEPTH} levels deep"
+NESTED_TOO_DEEP = f"expression has more than {MAX_DEPTH} levels of nested or chained operators"
 
 
 @pytest.mark.parametrize(

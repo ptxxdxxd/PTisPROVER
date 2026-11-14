@@ -9,7 +9,7 @@ from rubric_prover import syntax
 from rubric_prover.errors import RubricError, position
 from rubric_prover.lexer import Kind, Token, tokenize
 
-MAX_DEPTH = 100
+MAX_DEPTH = 200
 
 # token text -> (operator, left binding power, right binding power). Left-associative
 # operators bind their right operand one step tighter; 'implies' is the reverse.
@@ -30,6 +30,8 @@ _INFIX: dict[str, tuple[syntax.BinaryOp, int, int]] = {
     "-": ("-", 17, 18),
     "*": ("*", 19, 20),
 }
+# A chain such as "a or b or c" is a left-leaning tree, so it counts one level per operator.
+_TOO_DEEP = f"expression has more than {MAX_DEPTH} levels of nested or chained operators"
 _NOT_OPERAND_BP = 7
 _NEGATION_OPERAND_BP = 21
 
@@ -53,10 +55,7 @@ class _Parser:
                 self._fail("unmatched ')'", token)
             self._fail(f"unexpected {token.describe()} after a complete expression", token)
         if syntax.depth(node) > MAX_DEPTH:
-            self._fail_span(
-                f"expression is nested more than {MAX_DEPTH} levels deep",
-                (0, len(self._text)),
-            )
+            self._fail_span(_TOO_DEEP, (0, 1))
         return node
 
     def _peek(self) -> Token:
@@ -77,7 +76,7 @@ class _Parser:
 
     def _expression(self, min_bp: int, depth: int) -> syntax.Node:
         if depth > MAX_DEPTH:
-            self._fail(f"expression is nested more than {MAX_DEPTH} levels deep", self._peek())
+            self._fail(_TOO_DEEP, self._peek())
         left = self._prefix(self._advance(), depth)
         previous_was_comparison = False
         while True:

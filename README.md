@@ -61,7 +61,7 @@ coding-agent: FAIL (1 failed, 6 passed)
   pass       Criterion range: 'focused_diff' can pay and can fail
   pass       Overlapping criteria: no criterion pays whenever another does (6 ordered pairs checked)
 
-Checked by rubric-prover 0.1.0.dev0 with z3 5.4.1: 9 solver queries used 5,039 work units (budget 5,000,000 per query).
+Checked by rubric-prover 0.1.0.dev0 with z3 5.4.1: 9 solver queries used 5,040 work units (budget 5,000,000 per query).
 $ echo $?
 1
 ```
@@ -119,7 +119,7 @@ Exit codes make it usable as a CI gate:
 | 1 | fail |
 | 2 | inconclusive |
 | 3 | the rubric file or the command line is invalid |
-| 4 | internal error: the solver and the reference evaluator disagreed |
+| 4 | internal error: a bug in this tool, such as the solver and the reference evaluator disagreeing |
 
 From Python:
 
@@ -166,40 +166,45 @@ rubric file ─ loader ─ parser ─ type checker ─┬─ Z3 encoding ─ one
 ```
 
 - **Two implementations of the scoring rule.** The solver's encoding and a plain-Python
-  evaluator are written separately. Every outcome the solver returns is re-scored by the
-  evaluator; if they disagree, the run stops with an internal error instead of a result.
+  evaluator are separate code that share only the parser and type checker. Every outcome
+  that appears in a report or settles a question is re-scored by the evaluator; if the two
+  disagree, the run stops with an internal error instead of a result.
 - **Undecided is never passed.** A question the solver cannot settle is reported as such.
 - **Budgets are solver work, not seconds.** Each query gets a fixed number of Z3 resource
-  units (default 5,000,000), so the same rubric gives the same report on a laptop and on a
-  loaded CI runner. The Z3 version is pinned because the unit is specific to a Z3 build.
+  units (default 5,000,000), so the same rubric gives the same report on an idle machine and
+  a loaded one. The Z3 version is pinned because the unit is specific to a Z3 build. This has
+  been checked on Linux x86-64 across Python 3.11 to 3.13; other platforms are untested.
 - **The worst exploit, not the first.** After finding an outcome that breaks an invariant, the
   solver is asked for one that scores strictly higher, until it proves there is none.
 
 ## How it is tested
 
 <!-- BEGIN GENERATED: evidence -->
-- **Against brute force.** Each test run generates 500 small rubrics whose outcomes can all be listed, and every answer the solver gives must match the answer found by listing them.
-- **Against a second solver.** Every query can be exported as SMT-LIB2 (`--emit-smt2`). cvc5 1.4.2 agrees with Z3 5.4.1 on all 86 queries produced by the 5 examples and 4 test fixtures.
+- **Against brute force.** 500 generated rubrics small enough to list every outcome; each answer the solver gives must match the answer found by listing them. (On CI the generator is seeded, so it is the same set each run.)
+- **Against an evaluator that shares no code.** 300 more rubrics are generated as text alongside an equivalent Python expression. The text goes through the loader, parser, type checker and solver; the Python is run with `eval` over every outcome; the findings must match.
+- **Against a second solver.** Every query can be exported as SMT-LIB2 (`--emit-smt2`). cvc5 1.4.2 agrees with Z3 5.4.1 on all 84 queries produced by the 5 examples and 4 test fixtures.
 <!-- END GENERATED: evidence -->
 
-- `scripts/mutation_check.py` plants known bugs in a copy of the source, one at a time, and
-  checks that the test suite fails for each.
-- Parsers and loaders are fuzzed: any input must either load or raise an error that names the
-  problem.
+- `scripts/mutation_check.py` plants a fixed list of known bugs in a copy of the source, one
+  at a time, and checks that tests with fixed inputs fail for each. It is a spot check, not
+  full mutation testing.
+- Parsers and loaders are fuzzed with generated input. The crashes an outside review found
+  (binary files, numbers thousands of digits long, deeply nested data, unwritable output
+  paths) are now fixed tests.
 - Reports are compared byte for byte across separate processes.
 - `scripts/check_html.py` opens every HTML report in headless Chromium and fails on any
   console message. The report has no scripts; its stylesheet is allowed by hash in a
   Content-Security-Policy.
 
-Solver work for the bundled examples (identical on every machine; `scripts/benchmark.py` adds
-wall-clock times for yours):
+Solver work for the bundled examples (the same wherever this Z3 build runs;
+`scripts/benchmark.py` adds wall-clock times for your machine):
 
 <!-- BEGIN GENERATED: examples -->
 | Rubric | Verdict | Solver queries | Work units |
 |---|---|---:|---:|
-| [coding_agent.toml](examples/coding_agent.toml) | fail | 9 | 5,039 |
+| [coding_agent.toml](examples/coding_agent.toml) | fail | 9 | 5,040 |
 | [coding_agent_fixed.toml](examples/coding_agent_fixed.toml) | pass | 8 | 3,135 |
-| [math_answer.toml](examples/math_answer.toml) | fail | 12 | 6,711 |
+| [math_answer.toml](examples/math_answer.toml) | fail | 12 | 6,730 |
 | [summary_length.toml](examples/summary_length.toml) | fail | 9 | 4,597 |
 | [support_reply.toml](examples/support_reply.toml) | fail | 8 | 4,741 |
 

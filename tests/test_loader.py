@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import tomllib
+from collections.abc import Callable
 from decimal import Decimal
 from fractions import Fraction
 from pathlib import Path
@@ -124,9 +125,9 @@ def test_penalties_and_invariants() -> None:
     data["invariants"] = [{"id": "i1", "holds": "not flag"}]
     data["assume"] = ["x != 3"]
     rubric = rubric_from_dict(data)
-    assert [(p.id, p.deduction, p.zeroes_score) for p in rubric.penalties] == [
-        ("p1", Fraction(1, 4), False),
-        ("p2", None, True),
+    assert [(p.id, p.deduction) for p in rubric.penalties] == [
+        ("p1", Fraction(1, 4)),
+        ("p2", None),
     ]
     assert rubric.penalties[1].description == "hard stop"
     assert [i.id for i in rubric.invariants] == ["i1"]
@@ -454,3 +455,61 @@ def test_values_of_unexpected_python_types_are_named() -> None:
     data = base()
     data["exploit_threshold"] = {0.5}
     assert problems(data) == [("exploit_threshold", "expected a number, found set")]
+
+
+# Numbers and nesting that would otherwise crash or hang the loader.
+
+LIMIT = "numbers are limited to 100 digits on each side of the decimal point"
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "expected"),
+    [
+        ("weight = 1", "weight = 1e-999999999", ('criteria["c1"].weight', LIMIT)),
+        (
+            "exploit_threshold = 0.85",
+            "exploit_threshold = 1e999999999",
+            ("exploit_threshold", LIMIT),
+        ),
+        ("max = 10", "max = 0x" + "f" * 5000, ("variables.x.max", LIMIT)),
+        ("weight = 1", "weight = 0x" + "f" * 5000, ('criteria["c1"].weight', LIMIT)),
+    ],
+    ids=["tiny-exponent", "huge-exponent", "huge-bound", "huge-weight"],
+)
+def test_numbers_beyond_the_size_limit_are_refused(
+    old: str, new: str, expected: tuple[str, str]
+) -> None:
+    with pytest.raises(RubricError) as exc:
+        loads_toml(BASE_TOML.replace(old, new))
+    assert [(d.path, d.message) for d in exc.value.diagnostics] == [expected]
+
+
+def test_a_number_at_the_size_limit_is_accepted() -> None:
+    text = BASE_TOML.replace(
+        'x = { type = "int", min = 0, max = 10 }', 'x = { type = "real", max = 9e99 }'
+    )
+    assert loads_toml(text).variables[0].upper == 9 * Fraction(10) ** 99
+
+
+def test_an_id_that_is_a_huge_number_is_described_not_printed() -> None:
+    with pytest.raises(RubricError) as exc:
+        loads_toml(BASE_TOML.replace('id = "base"', "id = 0x" + "f" * 5000))
+    assert exc.value.diagnostics[0].message.endswith("found a very large number")
+
+
+@pytest.mark.parametrize(
+    ("loads", "text", "message"),
+    [
+        (loads_toml, "id = " + "9" * 5000, f"invalid TOML: {LIMIT}"),
+        (loads_json, '{"id": ' + "9" * 5000 + "}", f"invalid JSON: {LIMIT}"),
+        (loads_toml, "x = " + "[" * 100_000, "invalid TOML: values are nested too deeply"),
+        (loads_json, "[" * 100_000, "invalid JSON: values are nested too deeply"),
+    ],
+    ids=["toml-digits", "json-digits", "toml-nesting", "json-nesting"],
+)
+def test_input_python_cannot_read_is_a_rubric_error(
+    loads: Callable[[str], object], text: str, message: str
+) -> None:
+    with pytest.raises(RubricError) as exc:
+        loads(text)
+    assert [d.message for d in exc.value.diagnostics] == [message]

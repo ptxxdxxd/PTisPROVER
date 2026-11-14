@@ -70,7 +70,13 @@ def main(argv: list[str] | None = None) -> int:
     agreed = undecided = disagreed = 0
     for source in args.sources:
         for name, text in queries(source).items():
-            z3_answer, cvc5_answer = header(text, "z3"), solve_with_cvc5(text)
+            z3_answer = header(text, "z3")
+            try:
+                cvc5_answer = solve_with_cvc5(text)
+            except (RuntimeError, ValueError) as exc:
+                disagreed += 1
+                print(f"UNREADABLE {name}: cvc5 could not process the query: {exc}")
+                continue
             if "unknown" in (z3_answer, cvc5_answer):
                 undecided += 1
                 print(f"undecided  {name}: z3 {z3_answer}, cvc5 {cvc5_answer}")

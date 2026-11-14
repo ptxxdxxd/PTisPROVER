@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import runpy
 import subprocess
 import sys
@@ -188,7 +189,7 @@ def test_module_entry_point_in_process(monkeypatch: pytest.MonkeyPatch) -> None:
     assert exc.value.code == 0
 
 
-def test_console_script_in_subprocess() -> None:
+def test_module_runs_in_a_subprocess() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "rubric_prover", "check", LOOPHOLE, "--color", "never"],
         capture_output=True,
@@ -197,3 +198,109 @@ def test_console_script_in_subprocess() -> None:
     )
     assert result.returncode == 1, result.stderr
     assert result.stdout.startswith("loophole-volume: FAIL")
+
+
+# ------------------------------------------------------------------ robustness
+
+
+def write_ok_rubric(directory: Path) -> Path:
+    rubric = directory / "ok.toml"
+    rubric.write_text(
+        'id = "ok"\nexploit_threshold = 1\n[variables]\nx = { type = "int", min = 0, max = 5 }\n'
+        '[[criteria]]\nid = "c"\nweight = 1\nwhen = "x >= 3"\n',
+        encoding="utf-8",
+    )
+    return rubric
+
+
+def test_a_file_that_is_not_text_is_an_input_error(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    rubric = tmp_path / "binary.toml"
+    rubric.write_bytes(bytes(range(128, 256)))
+    code, _, err = run(capsys, "check", str(rubric))
+    assert (code, err) == (3, f"{rubric}: the file is not UTF-8 text\n")
+
+
+def test_a_byte_order_mark_is_accepted(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    rubric = write_ok_rubric(tmp_path)
+    rubric.write_bytes(b"\xef\xbb\xbf" + rubric.read_bytes())
+    assert run(capsys, "check", str(rubric))[0] == 0
+
+
+def test_unusable_output_locations_are_found_before_solving(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def must_not_run(*args: object, **kwargs: object) -> None:
+        raise AssertionError("the solver ran before the output location was checked")
+
+    monkeypatch.setattr("rubric_prover.cli.run_checks", must_not_run)
+    rubric = str(write_ok_rubric(tmp_path))
+    a_file = tmp_path / "file"
+    a_file.write_text("", encoding="utf-8")
+    for argv in (
+        ["-o", str(tmp_path / "missing" / "report.txt")],
+        ["-o", str(tmp_path)],
+        ["--emit-smt2", str(a_file)],
+    ):
+        code, out, err = run(capsys, "check", rubric, *argv)
+        assert (code, out) == (3, "")
+        assert err.startswith("cannot write to ")
+        assert "Traceback" not in err
+
+
+def test_a_failed_write_is_an_input_error(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def disk_full(path: Path, text: str) -> None:
+        raise OSError(28, "No space left on device", str(path))
+
+    monkeypatch.setattr("rubric_prover.cli._write", disk_full)
+    target = tmp_path / "report.txt"
+    code, _, err = run(capsys, "check", str(write_ok_rubric(tmp_path)), "-o", str(target))
+    assert (code, err) == (3, f"cannot write to {target}: No space left on device\n")
+
+
+def test_budget_above_what_z3_can_count_is_refused(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["check", LOOPHOLE, "--budget", str(2**32)])
+    assert exc.value.code == 3
+    assert "must be between 1 and 4,294,967,295" in capsys.readouterr().err
+
+
+def test_an_unexpected_exception_exits_4_not_1(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("something nobody planned for")
+
+    monkeypatch.setattr("rubric_prover.cli.run_checks", broken)
+    code, out, err = run(capsys, "check", LOOPHOLE)
+    assert (code, out) == (4, "")
+    assert "RuntimeError: something nobody planned for" in err
+    assert err.endswith("rubric-prover: internal error (traceback above), please report it\n")
+
+
+def test_fail_on_warning_says_why_it_exits_1(capsys: pytest.CaptureFixture[str]) -> None:
+    code, out, err = run(capsys, "check", REDUNDANT, "--fail-on-warning", "--color", "never")
+    assert code == 1
+    assert out.startswith("redundant-latency: PASS")
+    assert err == "rubric-prover: exit 1: --fail-on-warning is set and there are 1 warning(s)\n"
+
+
+def test_html_to_a_console_that_is_not_utf8() -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "rubric_prover", "check", GOVCON, "--format", "html"],
+        capture_output=True,
+        check=False,
+        env={**os.environ, "PYTHONIOENCODING": "cp1252"},
+    )
+    assert result.returncode == 0, result.stderr
+    assert "\u2713" in result.stdout.decode("utf-8")
+
+
+def test_installed_console_script() -> None:
+    script = Path(sys.executable).parent / "rubric-prover"
+    result = subprocess.run([str(script), "--version"], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith(f"rubric-prover {__version__} ")

@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 
+_CONTEXT = 100  # characters of the source line shown around a problem
+
 
 def position(text: str, offset: int) -> tuple[int, int]:
     """Return the 1-based (line, column) of a character offset in ``text``."""
@@ -45,16 +47,23 @@ class Diagnostic:
         return replace(self, path=path)
 
     def render(self) -> str:
-        where = self.path or "<expression>"
         if self.text is None or self.start is None:
-            return f"{where}: {self.message}"
+            return f"{self.path}: {self.message}" if self.path else self.message
+        where = self.path or "<expression>"
         line, column = position(self.text, self.start)
-        lines = self.text.split("\n")
-        source_line = lines[line - 1]
+        # Control characters are replaced one for one, so columns still line up and
+        # nothing in a rubric file can send escape sequences to the terminal.
+        source_line = "".join(
+            c if c.isprintable() else "?" for c in self.text.split("\n")[line - 1]
+        )
         end = self.start + 1 if self.end is None else self.end
-        width = max(1, min(end - self.start, len(source_line) - column + 1))
-        caret = " " * (column - 1) + "^" * width
-        return f"{where}:{line}:{column}: {self.message}\n    {source_line}\n    {caret}"
+        # Long lines are shown as a window around the problem.
+        first = max(0, min(column - 1 - _CONTEXT // 2, len(source_line) - _CONTEXT))
+        shown = source_line[first : first + _CONTEXT]
+        offset = column - 1 - first
+        width = max(1, min(end - self.start, len(shown) - offset))
+        caret = " " * offset + "^" * width
+        return f"{where}:{line}:{column}: {self.message}\n    {shown}\n    {caret}"
 
 
 class RubricError(Exception):

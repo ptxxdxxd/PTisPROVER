@@ -117,11 +117,6 @@ def test_unknown_variable_without_a_close_match_gives_no_hint() -> None:
     assert exc.value.diagnostics[0].message == "unknown variable 'zzzz'"
 
 
-def test_free_variables() -> None:
-    expr = check_condition("x + r > 0 and (a or mask & 1 == 1)", SORTS)
-    assert ir.free_variables(expr) == {"x", "r", "a", "mask"}
-
-
 @given(token_soup)
 def test_token_soup_type_checks_or_raises_rubric_error(text: str) -> None:
     with contextlib.suppress(RubricError):

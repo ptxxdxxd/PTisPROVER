@@ -106,19 +106,3 @@ class Logic:
 
 
 Expr = Var | Const | ToReal | Neg | Arith | BitOp | Compare | Not | Logic
-
-
-def free_variables(expr: Expr) -> frozenset[str]:
-    """Names of the variables an expression reads."""
-    names: set[str] = set()
-    stack: list[Expr] = [expr]
-    while stack:
-        node = stack.pop()
-        if isinstance(node, Var):
-            names.add(node.name)
-        elif isinstance(node, ToReal | Neg | Not):
-            stack.append(node.arg)
-        elif isinstance(node, Arith | BitOp | Compare | Logic):
-            stack.append(node.left)
-            stack.append(node.right)
-    return frozenset(names)

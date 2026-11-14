@@ -61,7 +61,7 @@ coding-agent: FAIL (1 failed, 6 passed)
   pass       Criterion range: 'focused_diff' can pay and can fail
   pass       Overlapping criteria: no criterion pays whenever another does (6 ordered pairs checked)
 
-Checked by PTisPROVER 0.1.0.dev0 with z3 5.4.1: 9 solver queries used 5,040 work units (budget 5,000,000 per query).
+Checked by PTisPROVER 0.1.0.dev0 with z3 5.4.1: 9 solver queries used 4,783 work units (budget 5,000,000 per query).
 $ echo $?
 1
 ```
@@ -176,8 +176,9 @@ For reward hacking, finding one outcome that breaks an invariant is not enough. 
 then asked for an outcome that scores strictly higher, until it proves there is none, so the
 report shows the worst case.
 
-Budgets count solver work, not seconds. Each query gets a fixed number of Z3 resource units,
-so the same rubric produces the same report on an idle machine and a loaded one.
+Budgets count solver work, not seconds. Each query gets a fixed number of Z3 resource units
+and its own Z3 Context, so the same rubric produces the same report on an idle machine and a
+loaded one, and the work a query takes does not depend on the queries before it.
 
 ## How it is tested
 
@@ -208,11 +209,11 @@ machine.
 <!-- BEGIN GENERATED: examples -->
 | Rubric | Verdict | Solver queries | Work units |
 |---|---|---:|---:|
-| [coding_agent.toml](examples/coding_agent.toml) | fail | 9 | 5,040 |
-| [coding_agent_fixed.toml](examples/coding_agent_fixed.toml) | pass | 8 | 3,135 |
-| [math_answer.toml](examples/math_answer.toml) | fail | 12 | 6,730 |
-| [summary_length.toml](examples/summary_length.toml) | fail | 9 | 4,597 |
-| [support_reply.toml](examples/support_reply.toml) | fail | 8 | 4,741 |
+| [coding_agent.toml](examples/coding_agent.toml) | fail | 9 | 4,783 |
+| [coding_agent_fixed.toml](examples/coding_agent_fixed.toml) | pass | 8 | 2,898 |
+| [math_answer.toml](examples/math_answer.toml) | fail | 12 | 6,222 |
+| [summary_length.toml](examples/summary_length.toml) | fail | 9 | 4,159 |
+| [support_reply.toml](examples/support_reply.toml) | fail | 8 | 4,432 |
 
 What each example shows is in [examples/README.md](examples/README.md).
 <!-- END GENERATED: examples -->
@@ -231,7 +232,7 @@ What each example shows is in [examples/README.md](examples/README.md).
 - Bit-vectors support `& | ^`, equality and unsigned ordering only, no arithmetic.
 - The budget bounds solver work, not wall-clock time. There is no timeout.
 - Z3's resource units are specific to one Z3 build, which is why `z3-solver` is pinned
-  exactly. Identical reports have been checked on Linux x86-64 with Python 3.11 to 3.13;
+  exactly. Identical reports have been checked on Linux x86-64 with Python 3.11 to 3.14;
   macOS and Windows are untested.
 - The HTML report has been checked in Chromium only.
 

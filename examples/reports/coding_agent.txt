@@ -10,4 +10,4 @@ coding-agent: FAIL (1 failed, 6 passed)
   pass       Criterion range: 'focused_diff' can pay and can fail
   pass       Overlapping criteria: no criterion pays whenever another does (6 ordered pairs checked)
 
-Checked by PTisPROVER 0.1.0.dev0 with z3 5.4.1: 9 solver queries used 5,040 work units (budget 5,000,000 per query).
+Checked by PTisPROVER 0.1.0.dev0 with z3 5.4.1: 9 solver queries used 4,783 work units (budget 5,000,000 per query).

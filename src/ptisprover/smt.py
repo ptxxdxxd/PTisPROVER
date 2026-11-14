@@ -242,12 +242,15 @@ class Session:
         self.budget = budget
         self.keep_smt2 = keep_smt2
         self.queries: list[Query] = []
-        self._work_so_far = 0
 
     @property
     def work(self) -> int:
-        return self._work_so_far
+        return sum(query.work for query in self.queries)
 
+    # Each query is solved in a fresh Context that holds a copy of only its own formulas.
+    # Z3 reuses the ids of freed terms and its search order depends on those ids, so in a
+    # shared Context the work a query takes would depend on what earlier queries left behind
+    # and on when Python freed it, which differs between Python 3.13 and 3.14.
     def ask(
         self,
         label: str,
@@ -255,28 +258,30 @@ class Session:
         tracked: Sequence[Requirement] = (),
     ) -> Reply:
         """Is there an outcome satisfying everything given? Tracked requirements form the core."""
-        ctx = self.encoding.ctx
+        ctx = z3.Context()
         solver = z3.Solver(ctx=ctx)
         solver.set("rlimit", self.budget)
         trackers: dict[str, str] = {}
+        formulas: list[z3.BoolRef] = []
         for index, requirement in enumerate(tracked):
             tracker = z3.Bool(f"req!{index}", ctx)
             trackers[str(tracker)] = requirement.path
-            solver.assert_and_track(requirement.formula, tracker)
+            formula = requirement.formula.translate(ctx)
+            solver.assert_and_track(formula, tracker)
+            formulas.append(formula)
         for constraint in constraints:
-            solver.add(constraint)
-        smt2 = self._export([r.formula for r in tracked] + list(constraints))
+            formula = constraint.translate(ctx)
+            solver.add(formula)
+            formulas.append(formula)
         verdict = solver.check()
-        # Z3 counts resource units per Context, cumulatively across solvers.
-        total = int(solver.statistics().get_key_value("rlimit count"))
-        work, self._work_so_far = total - self._work_so_far, total
+        work = int(solver.statistics().get_key_value("rlimit count"))
         if verdict == z3.sat:
             answer = Answer.SAT
         elif verdict == z3.unsat:
             answer = Answer.UNSAT
         else:
             answer = Answer.UNKNOWN
-        self.queries.append(Query(label, answer, work, smt2))
+        self.queries.append(Query(label, answer, work, self._export(ctx, formulas)))
         if answer is Answer.UNSAT:
             core = tuple(trackers[str(t)] for t in solver.unsat_core() if str(t) in trackers)
             order = [r.path for r in tracked]
@@ -284,8 +289,8 @@ class Session:
         if answer is Answer.UNKNOWN:
             return Reply(answer)
         z3_model = solver.model()
-        model, irrational = self._read_model(z3_model)
-        score = z3_model.eval(self.encoding.score, model_completion=True)
+        model, irrational = self._read_model(z3_model, ctx)
+        score = z3_model.eval(self.encoding.score.translate(ctx), model_completion=True)
         assert z3.is_rational_value(score)
         return Reply(
             answer,
@@ -296,19 +301,19 @@ class Session:
 
     # Written from a second solver with every formula asserted plainly. Z3 exports a
     # tracked assertion as (=> tracker formula), which any other solver can satisfy by
-    # setting the tracker to false.
-    def _export(self, formulas: Sequence[z3.BoolRef]) -> str | None:
+    # setting the tracker to false. Called after the check, so it cannot change the work.
+    def _export(self, ctx: z3.Context, formulas: Sequence[z3.BoolRef]) -> str | None:
         if not self.keep_smt2:
             return None
-        plain = z3.Solver(ctx=self.encoding.ctx)
+        plain = z3.Solver(ctx=ctx)
         plain.add(*formulas)
         return "(set-logic ALL)\n" + str(plain.to_smt2())
 
-    def _read_model(self, model: z3.ModelRef) -> tuple[dict[str, ir.Value], bool]:
+    def _read_model(self, model: z3.ModelRef, ctx: z3.Context) -> tuple[dict[str, ir.Value], bool]:
         values: dict[str, ir.Value] = {}
         irrational = False
         for name, symbol in self.encoding.variables.items():
-            value = model.eval(symbol, model_completion=True)
+            value = model.eval(symbol.translate(ctx), model_completion=True)
             if z3.is_true(value) or z3.is_false(value):
                 values[name] = z3.is_true(value)
             elif z3.is_int_value(value) or z3.is_bv_value(value):

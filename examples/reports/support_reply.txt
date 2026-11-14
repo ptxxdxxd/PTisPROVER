@@ -11,4 +11,4 @@ support-reply: FAIL (1 failed, 7 passed)
   pass       Overlapping criteria: no criterion pays whenever another does (6 ordered pairs checked)
   pass       Penalty range: 'unrequested_refund' can fire and can stay off
 
-Checked by PTisPROVER 0.1.0.dev0 with z3 5.4.1: 8 solver queries used 4,741 work units (budget 5,000,000 per query).
+Checked by PTisPROVER 0.1.0.dev0 with z3 5.4.1: 8 solver queries used 4,432 work units (budget 5,000,000 per query).

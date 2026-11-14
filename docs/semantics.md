@@ -156,9 +156,13 @@ exploit search reached its step cap.
 
 ## Budgets and reproducibility
 
-Each query runs on a fresh Z3 solver with a limit on Z3's resource counter (`rlimit`). The
-counter measures solver work, not time, so the same rubric with the same Z3 build gives the
-same answers, and the same report byte for byte, on any machine. `z3-solver` is pinned to an
+Each query runs in its own Z3 Context, holding a copy of only that query's formulas, with a
+limit on Z3's resource counter (`rlimit`). The counter measures solver work, not time, so the
+same rubric with the same Z3 build gives the same answers, and the same report byte for byte,
+on any machine. A fresh Context per query matters as much as the budget: Z3 reuses the ids of
+freed terms and its search order depends on them, so in a shared Context the work a query
+takes would depend on earlier queries and on when Python freed their terms, which changed
+between Python 3.13 and 3.14. `z3-solver` is pinned to an
 exact version for this reason: a different build may count work differently, and a query near
 the budget could change from decided to unknown.
 
@@ -166,8 +170,8 @@ the budget could change from decided to unknown.
 question that was undecided for lack of budget. It does not help with the other two causes
 above, and it cannot change a decided result.
 
-Reproducibility has been checked on Linux x86-64 with Python 3.11, 3.12 and 3.13. Whether
-Z3's builds for other platforms count work identically is untested.
+Reproducibility has been checked on Linux x86-64 with Python 3.11, 3.12, 3.13 and 3.14.
+Whether Z3's builds for other platforms count work identically is untested.
 
 ## Verdict and exit code
 

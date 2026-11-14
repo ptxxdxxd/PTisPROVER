@@ -12,3 +12,4 @@ settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "dev"))
 
 RUBRICS = Path(__file__).parent / "rubrics"
 ORIGINAL = RUBRICS / "original"
+EXAMPLES = Path(__file__).parent.parent / "examples"

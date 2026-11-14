@@ -30,7 +30,7 @@ EXIT_CODES = {Status.PASS: 0, Status.FAIL: 1, Status.INCONCLUSIVE: 2}
 
 def example_run() -> str:
     path = ROOT / "examples" / "coding_agent.toml"
-    report = prove(load_rubric(path))
+    report = prove(load_rubric(path)).report
     return "\n".join(
         [
             "```console",
@@ -46,7 +46,7 @@ def example_run() -> str:
 def examples_table() -> str:
     rows = ["| Rubric | Verdict | Solver queries | Work units |", "|---|---|---:|---:|"]
     for path in EXAMPLES:
-        report = prove(load_rubric(path))
+        report = prove(load_rubric(path)).report
         rows.append(
             f"| [{path.name}](examples/{path.name}) | {report.verdict} "
             f"| {report.solver.queries} | {report.solver.work:,} |"
@@ -65,7 +65,7 @@ def evidence() -> str:
     if text_match is None:
         raise SystemExit("cannot find the text differential test's example count")
     text_count = text_match.group(1)
-    result = subprocess.run(
+    completed = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "cross_check.py"), "--strict"]
         + [str(p) for p in EXAMPLES + FIXTURES],
         capture_output=True,
@@ -74,10 +74,10 @@ def evidence() -> str:
     )
     summary = re.fullmatch(
         r"cvc5 (\S+): (\d+) queries agree, 0 undecided, 0 disagree",
-        result.stdout.strip().splitlines()[-1] if result.stdout.strip() else "",
+        completed.stdout.strip().splitlines()[-1] if completed.stdout.strip() else "",
     )
-    if result.returncode != 0 or summary is None:
-        raise SystemExit(f"cross-check did not pass:\n{result.stdout}{result.stderr}")
+    if completed.returncode != 0 or summary is None:
+        raise SystemExit(f"cross-check did not pass:\n{completed.stdout}{completed.stderr}")
     return "\n".join(
         [
             f"- **Against brute force.** {match.group(1)} generated rubrics small enough to list "

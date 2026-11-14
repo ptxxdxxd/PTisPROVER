@@ -38,23 +38,23 @@ def base() -> dict[str, Any]:
     return tomllib.loads(BASE_TOML, parse_float=Decimal)
 
 
-def problems(data: dict[str, Any]) -> list[tuple[str, str]]:
+def problems(document: dict[str, Any]) -> list[tuple[str, str]]:
     with pytest.raises(RubricError) as exc:
-        rubric_from_dict(data)
+        rubric_from_dict(document)
     return [(d.path, d.message) for d in exc.value.diagnostics]
 
 
 def with_changes(path: list[Any], value: Any) -> dict[str, Any]:
     """Copy of the base rubric with one nested key set (or deleted when value is ...)."""
-    data = copy.deepcopy(base())
-    target: Any = data
+    document = copy.deepcopy(base())
+    target: Any = document
     for key in path[:-1]:
         target = target[key]
     if value is ...:
         del target[path[-1]]
     else:
         target[path[-1]] = value
-    return data
+    return document
 
 
 def test_base_rubric_loads() -> None:
@@ -84,13 +84,13 @@ def test_json_and_toml_versions_of_a_rubric_are_identical() -> None:
 def test_decimals_are_exact_where_floats_would_not_be() -> None:
     # Plain float addition misses 1 here on every supported Python version.
     assert 0.3 + 0.6 + 0.1 == 0.9999999999999999
-    data = base()
-    data["criteria"] = [
+    document = base()
+    document["criteria"] = [
         {"id": "a", "weight": Decimal("0.3"), "when": "x > 1"},
         {"id": "b", "weight": Decimal("0.6"), "when": "x > 2"},
         {"id": "c", "weight": Decimal("0.1"), "when": "x > 3"},
     ]
-    weights = [c.weight for c in rubric_from_dict(data).criteria]
+    weights = [c.weight for c in rubric_from_dict(document).criteria]
     assert weights == [Fraction(3, 10), Fraction(3, 5), Fraction(1, 10)]
     assert sum(weights) == 1
 
@@ -117,14 +117,14 @@ def test_variable_sorts_and_bounds() -> None:
 
 
 def test_penalties_and_invariants() -> None:
-    data = base()
-    data["penalties"] = [
+    document = base()
+    document["penalties"] = [
         {"id": "p1", "deduct": Decimal("0.25"), "when": "flag"},
         {"id": "p2", "zero": True, "when": "x == 0", "description": "hard stop"},
     ]
-    data["invariants"] = [{"id": "i1", "holds": "not flag"}]
-    data["assume"] = ["x != 3"]
-    rubric = rubric_from_dict(data)
+    document["invariants"] = [{"id": "i1", "holds": "not flag"}]
+    document["assume"] = ["x != 3"]
+    rubric = rubric_from_dict(document)
     assert [(p.id, p.deduction) for p in rubric.penalties] == [
         ("p1", Fraction(1, 4)),
         ("p2", None),
@@ -297,37 +297,40 @@ def test_missing_required_sections() -> None:
     ],
 )
 def test_penalty_errors(penalty: dict[str, Any], expected: list[Any]) -> None:
-    data = base()
-    data["penalties"] = [penalty]
-    assert problems(data) == expected
+    document = base()
+    document["penalties"] = [penalty]
+    assert problems(document) == expected
 
 
 def test_invariant_errors() -> None:
-    data = base()
-    data["invariants"] = [{"id": "i1"}, {"holds": "flag"}]
-    assert problems(data) == [('invariants["i1"].holds', REQUIRED), ("invariants[1].id", REQUIRED)]
+    document = base()
+    document["invariants"] = [{"id": "i1"}, {"holds": "flag"}]
+    assert problems(document) == [
+        ('invariants["i1"].holds', REQUIRED),
+        ("invariants[1].id", REQUIRED),
+    ]
 
 
 def test_ids_are_unique_across_sections() -> None:
-    data = base()
-    data["invariants"] = [{"id": "c1", "holds": "flag"}]
-    assert problems(data) == [("invariants[0].id", "id 'c1' is already used at criteria[0].id")]
+    document = base()
+    document["invariants"] = [{"id": "c1", "holds": "flag"}]
+    assert problems(document) == [("invariants[0].id", "id 'c1' is already used at criteria[0].id")]
 
 
 @pytest.mark.parametrize("name", ["1x", "and", "has space", "x" * 65])
 def test_variable_name_rules(name: str) -> None:
-    data = base()
-    data["variables"][name] = "int"
-    ((path, message),) = problems(data)
+    document = base()
+    document["variables"][name] = "int"
+    ((path, message),) = problems(document)
     assert path == f"variables.{name}"
     assert message.startswith("variable names start with a letter or '_'")
 
 
 def test_condition_errors_carry_the_expression_position() -> None:
-    data = base()
-    data["criteria"][0]["when"] = "x >=\n  flag + 1"
+    document = base()
+    document["criteria"][0]["when"] = "x >=\n  flag + 1"
     with pytest.raises(RubricError) as exc:
-        rubric_from_dict(data)
+        rubric_from_dict(document)
     (diagnostic,) = exc.value.diagnostics
     assert diagnostic.path == 'criteria["c1"].when'
     assert (diagnostic.line, diagnostic.column) == (2, 8)
@@ -340,29 +343,29 @@ def test_condition_errors_carry_the_expression_position() -> None:
 
 
 def test_assumption_errors_are_located_by_index() -> None:
-    data = base()
-    data["assume"] = ["x > 1", "y > 1"]
-    assert problems(data) == [("assume[1]", "unknown variable 'y'")]
+    document = base()
+    document["assume"] = ["x > 1", "y > 1"]
+    assert problems(document) == [("assume[1]", "unknown variable 'y'")]
 
 
 def test_broken_variable_declarations_do_not_cascade() -> None:
     """A bad declaration suppresses type checking, so 'x' is not also 'unknown'."""
-    data = base()
-    data["variables"]["x"]["type"] = "integer"
-    data["criteria"][0]["when"] = "x >= 5"
-    data["invariants"] = [{"id": "i", "holds": "x >"}]  # syntax errors are still reported
-    assert problems(data) == [
+    document = base()
+    document["variables"]["x"]["type"] = "integer"
+    document["criteria"][0]["when"] = "x >= 5"
+    document["invariants"] = [{"id": "i", "holds": "x >"}]  # syntax errors are still reported
+    assert problems(document) == [
         ("variables.x.type", "unknown type 'integer'; use bool, int, real or bv1 ... bv64"),
         ('invariants["i"].holds', "expected an expression, found end of input"),
     ]
 
 
 def test_every_problem_is_reported_at_once() -> None:
-    data = base()
-    data["exploit_threshold"] = Decimal(2)
-    data["criteria"][0]["when"] = "x >"
-    data["penalties"] = [{"id": "p", "when": "flag"}]
-    assert len(problems(data)) == 3
+    document = base()
+    document["exploit_threshold"] = Decimal(2)
+    document["criteria"][0]["when"] = "x >"
+    document["penalties"] = [{"id": "p", "when": "flag"}]
+    assert len(problems(document)) == 3
 
 
 @pytest.mark.parametrize(
@@ -431,15 +434,15 @@ def test_load_rubric_by_suffix(tmp_path: Path) -> None:
 
 
 @given(rubric_like_dicts)
-def test_arbitrary_data_loads_or_raises_rubric_error(data: dict[str, Any]) -> None:
+def test_arbitrary_data_loads_or_raises_rubric_error(document: dict[str, Any]) -> None:
     with contextlib.suppress(RubricError):
-        rubric_from_dict(data)
+        rubric_from_dict(document)
 
 
 @given(plausible_rubrics)
-def test_rubric_shaped_data_loads_or_raises_rubric_error(data: dict[str, Any]) -> None:
+def test_rubric_shaped_data_loads_or_raises_rubric_error(document: dict[str, Any]) -> None:
     with contextlib.suppress(RubricError):
-        rubric = rubric_from_dict(data)
+        rubric = rubric_from_dict(document)
         assert sum(c.weight for c in rubric.criteria) == 1
 
 
@@ -452,9 +455,9 @@ def test_arbitrary_text_as_toml_or_json_raises_only_rubric_error(text: str) -> N
 
 
 def test_values_of_unexpected_python_types_are_named() -> None:
-    data = base()
-    data["exploit_threshold"] = {0.5}
-    assert problems(data) == [("exploit_threshold", "expected a number, found set")]
+    document = base()
+    document["exploit_threshold"] = {0.5}
+    assert problems(document) == [("exploit_threshold", "expected a number, found set")]
 
 
 # Numbers and nesting that would otherwise crash or hang the loader.

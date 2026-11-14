@@ -33,7 +33,7 @@ when = "x * x * x + y * y * y != z * z * z"
 
 def test_r1_a_free_criterion_is_found_when_the_solver_can_decide() -> None:
     """x^3 + y^3 = z^3 has no positive solutions, so the second criterion is free reward."""
-    report = prove(loads_toml(FERMAT.format(top=10)))
+    report = prove(loads_toml(FERMAT.format(top=10))).report
     finding = next(f for f in report.findings if f.subjects == ("not_a_cube_sum",))
     assert finding.status is Status.FAIL
     assert finding.message == "'not_a_cube_sum' pays for every admissible outcome: free reward"
@@ -41,7 +41,7 @@ def test_r1_a_free_criterion_is_found_when_the_solver_can_decide() -> None:
 
 def test_r1_an_undecided_check_is_never_a_pass() -> None:
     """The original called this rubric sound when its 30 ms timeout expired."""
-    report = prove(loads_toml(FERMAT.format(top=60)), budget=200_000)
+    report = prove(loads_toml(FERMAT.format(top=60)), budget=200_000).report
     finding = next(f for f in report.findings if f.subjects == ("not_a_cube_sum",))
     assert finding.status is Status.INCONCLUSIVE
     assert report.verdict is Status.INCONCLUSIVE
@@ -50,13 +50,13 @@ def test_r1_an_undecided_check_is_never_a_pass() -> None:
 def test_r2_the_answer_does_not_depend_on_the_clock() -> None:
     """Budgets are solver work units, so repeated runs agree exactly (see test_determinism)."""
     rubric = loads_toml(FERMAT.format(top=10))
-    first = prove(rubric).to_json()
-    assert all(prove(rubric).to_json() == first for _ in range(3))
+    first = prove(rubric).report.to_json()
+    assert all(prove(rubric).report.to_json() == first for _ in range(3))
 
 
 def test_r3_no_invariants_means_the_exploit_check_did_not_run() -> None:
     """The original reported 'unsat, passed' here without calling the solver."""
-    report = prove(loads_toml(FERMAT.format(top=3)))
+    report = prove(loads_toml(FERMAT.format(top=3))).report
     (finding,) = [f for f in report.findings if f.check is Check.EXPLOIT]
     assert finding.status is Status.WARN
     assert finding.message == "no invariants declared, so the reward-hacking check did not run"
@@ -74,7 +74,7 @@ def test_r4_a_rubric_written_as_json_loads_and_is_checked() -> None:
             }
         )
     )
-    assert prove(rubric).verdict is Status.PASS
+    assert prove(rubric).report.verdict is Status.PASS
 
 
 def test_r5_witnesses_are_exact() -> None:
@@ -92,7 +92,7 @@ def test_r5_witnesses_are_exact() -> None:
         when = "a > 0"
         """
     )
-    report = prove(rubric)
+    report = prove(rubric).report
     example = report.findings[0].example
     assert example is not None
     assert example.assignment["a"] == Fraction(1, 3)
@@ -109,11 +109,11 @@ def worst_exploit(report: Report, invariant: str) -> tuple[Fraction | None, bool
 
 def test_r6_the_worst_exploit_is_reported_not_the_first() -> None:
     """Without its two assumptions, fixture 3 hides a perfect-score exploit."""
-    shipped = prove(load_rubric(ORIGINAL / "loophole_volume.toml"))
+    shipped = prove(load_rubric(ORIGINAL / "loophole_volume.toml")).report
     text = (ORIGINAL / "loophole_volume.toml").read_text(encoding="utf-8")
     start = text.index("assume = [")
     end = text.index("]\n", start) + 2
-    without_assumptions = prove(loads_toml(text[:start] + text[end:]))
+    without_assumptions = prove(loads_toml(text[:start] + text[end:])).report
 
     # As shipped: margin < 0.05 forces uncapped liability, which forces the -0.12 margin
     # and earns 0.55 + 0.45 - 0.10 = 0.90.

@@ -42,7 +42,7 @@ class Example:
 
 
 @dataclass(frozen=True, slots=True)
-class ConflictItem:
+class ConflictRequirement:
     path: str
     requires: str
 
@@ -51,7 +51,7 @@ class ConflictItem:
 class Conflict:
     """Requirements that cannot all hold. ``minimal``: dropping any one makes them satisfiable."""
 
-    items: tuple[ConflictItem, ...]
+    requirements: tuple[ConflictRequirement, ...]
     minimal: bool
 
 
@@ -133,7 +133,9 @@ def _finding(finding: Finding) -> dict[str, Any]:
     if finding.conflict is not None:
         out["conflict"] = {
             "minimal": finding.conflict.minimal,
-            "items": [{"path": i.path, "requires": i.requires} for i in finding.conflict.items],
+            "requirements": [
+                {"path": r.path, "requires": r.requires} for r in finding.conflict.requirements
+            ],
         }
     if finding.example is not None:
         example = finding.example

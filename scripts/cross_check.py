@@ -16,7 +16,7 @@ from pathlib import Path
 import cvc5
 
 from ptisprover import load_rubric
-from ptisprover.prover import run_checks
+from ptisprover.prover import prove
 
 CVC5_TIME_LIMIT_MS = 10_000
 
@@ -57,7 +57,7 @@ def queries(source: Path) -> dict[str, str]:
         if not files:
             raise ValueError(f"no query-*.smt2 files in {source}")
         return {str(f): f.read_text(encoding="utf-8") for f in files}
-    proof = run_checks(load_rubric(source), keep_smt2=True)
+    proof = prove(load_rubric(source), keep_smt2=True)
     return {f"{source}:{name}": text for name, text in proof.smt2_files().items()}
 
 

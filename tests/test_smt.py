@@ -34,13 +34,13 @@ def python_value(term: z3.ExprRef) -> ir.Value:
 
 
 @given(st.data())
-def test_encoding_agrees_with_the_reference_evaluator(data: st.DataObject) -> None:
-    sorts = data.draw(st.lists(st.sampled_from(SORTS), min_size=1, max_size=4))
+def test_encoding_agrees_with_the_reference_evaluator(draws: st.DataObject) -> None:
+    sorts = draws.draw(st.lists(st.sampled_from(SORTS), min_size=1, max_size=4))
     variables = [Variable(f"v{i}", sort) for i, sort in enumerate(sorts)]
     env = tuple((v.name, v.sort) for v in variables)
-    result_sort = data.draw(st.sampled_from(SORTS))
-    expr = data.draw(typed_exprs(result_sort, env, 3))
-    assignment = {v.name: data.draw(values_of(v.sort)) for v in variables}
+    expr_sort = draws.draw(st.sampled_from(SORTS))
+    expr = draws.draw(typed_exprs(expr_sort, env, 3))
+    assignment = {v.name: draws.draw(values_of(v.sort)) for v in variables}
 
     encoding = Encoding(rubric_over(variables))
     substitutions = [
@@ -71,11 +71,11 @@ def test_bit_vector_bounds_are_unsigned() -> None:
     encoding = Encoding(rubric_over([Variable("m", BitVecSort(8), 100, None)]))
     session = Session(encoding, 10_000)
     # Read as signed 8-bit, 200 would be -56 and fail 'm >= 100'; unsigned it passes.
-    result = session.ask(
+    reply = session.ask(
         "can m be 200",
         [*(r.formula for r in encoding.bounds), encoding.variables["m"] == 200],
     )
-    assert result.answer is Answer.SAT
+    assert reply.answer is Answer.SAT
 
 
 def test_session_logs_queries_and_counts_work() -> None:
@@ -99,15 +99,15 @@ def test_session_rejects_a_non_positive_budget() -> None:
 
 def test_unsat_core_comes_back_as_requirement_paths_in_order() -> None:
     encoding = Encoding(rubric_over([Variable("x", INT, 5, 3)]))
-    result = Session(encoding, 10_000).ask("bounds", tracked=encoding.bounds)
-    assert result.answer is Answer.UNSAT
-    assert result.core == ("variables.x.min", "variables.x.max")
+    reply = Session(encoding, 10_000).ask("bounds", tracked=encoding.bounds)
+    assert reply.answer is Answer.UNSAT
+    assert reply.core == ("variables.x.min", "variables.x.max")
 
 
 def test_irrational_models_are_flagged() -> None:
     encoding = Encoding(rubric_over([Variable("r", REAL)]))
     r = encoding.variables["r"]
-    result = Session(encoding, 1_000_000).ask("r squared is 2", [r * r == 2, r > 0])
-    assert result.answer is Answer.SAT
-    assert result.irrational
-    assert result.model == {}
+    reply = Session(encoding, 1_000_000).ask("r squared is 2", [r * r == 2, r > 0])
+    assert reply.answer is Answer.SAT
+    assert reply.irrational
+    assert reply.model == {}

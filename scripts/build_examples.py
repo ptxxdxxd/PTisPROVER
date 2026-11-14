@@ -34,7 +34,7 @@ def expected_files() -> dict[Path, str]:
     rows = []
     for path in sorted(EXAMPLES.glob("*.toml")):
         rubric = load_rubric(path)
-        report = prove(rubric)
+        report = prove(rubric).report
         stem = path.stem
         files[REPORTS / f"{stem}.txt"] = render_text(report, __version__)
         files[REPORTS / f"{stem}.json"] = report.to_json()

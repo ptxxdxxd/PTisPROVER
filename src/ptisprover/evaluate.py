@@ -109,10 +109,6 @@ def assess(rubric: Rubric, env: Assignment) -> Assessment:
     )
 
 
-def score(rubric: Rubric, env: Assignment) -> Fraction:
-    return assess(rubric, env).score
-
-
 def _score(rubric: Rubric, paying: set[str], firing: set[str]) -> Fraction:
     fired = [p for p in rubric.penalties if p.id in firing]
     if any(p.deduction is None for p in fired):

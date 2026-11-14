@@ -18,13 +18,13 @@ EXAMPLES = ROOT / "examples"
 
 
 def test_committed_example_reports_are_current() -> None:
-    result = subprocess.run(
+    completed = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "build_examples.py"), "--check"],
         capture_output=True,
         text=True,
         check=False,
     )
-    assert result.returncode == 0, result.stdout + result.stderr
+    assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
 @pytest.mark.parametrize(
@@ -45,7 +45,7 @@ def test_each_example_shows_its_flaw(
     status: Status,
     subjects: tuple[str, ...] | None,
 ) -> None:
-    report = prove(load_rubric(EXAMPLES / f"{name}.toml"))
+    report = prove(load_rubric(EXAMPLES / f"{name}.toml")).report
     assert report.verdict is verdict
     assert any(
         f.check is check and f.status is status and (subjects is None or f.subjects == subjects)
@@ -55,7 +55,7 @@ def test_each_example_shows_its_flaw(
 
 def test_the_fix_closes_the_exploit_completely() -> None:
     def worst(name: str) -> Fraction | None:
-        report = prove(load_rubric(EXAMPLES / f"{name}.toml"))
+        report = prove(load_rubric(EXAMPLES / f"{name}.toml")).report
         (finding,) = [f for f in report.findings if f.check is Check.EXPLOIT]
         assert finding.max_proven
         return finding.max_score

@@ -167,8 +167,6 @@ plausible_rubrics = st.fixed_dictionaries(
 )
 
 
-# ---------------------------------------------------------------- typed IR
-
 _LOGIC_OPS: list[ir.LogicalOp] = ["and", "or", "implies"]
 _ARITH_OPS: list[ir.ArithmeticOp] = ["+", "-", "*"]
 _BIT_OPS: list[ir.BitwiseOp] = ["&", "|", "^"]
@@ -255,9 +253,6 @@ def values_of(sort: Sort) -> st.SearchStrategy[ir.Value]:
         return st.fractions(min_value=-50, max_value=50, max_denominator=12)
     assert isinstance(sort, BitVecSort)
     return st.integers(0, sort.max_value)
-
-
-# ---------------------------------------------------------------- finite rubrics
 
 
 @st.composite

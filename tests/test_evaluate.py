@@ -5,7 +5,7 @@ from fractions import Fraction
 import pytest
 
 from ptisprover import ir
-from ptisprover.evaluate import assess, evaluate, score, validate_assignment
+from ptisprover.evaluate import assess, evaluate, validate_assignment
 from ptisprover.loader import load_rubric, loads_toml
 from ptisprover.model import Rubric
 from ptisprover.sorts import INT, REAL, BitVecSort, Sort
@@ -122,11 +122,11 @@ def test_loophole_exploit_from_the_original_fixture(loophole: Rubric) -> None:
 
 def test_redundant_latency_tiers(redundant: Rubric) -> None:
     # 40 <= 50 and 40 <= 100 and 0.95 >= 0.92: 0.40 + 0.30 + 0.30 = 1.00
-    assert score(redundant, {"response_latency_ms": 40, "accuracy": F("0.95")}) == 1
+    assert assess(redundant, {"response_latency_ms": 40, "accuracy": F("0.95")}).score == 1
     # 80 > 50 but 80 <= 100, accurate: 0.30 + 0.30 = 0.60
-    assert score(redundant, {"response_latency_ms": 80, "accuracy": F("0.95")}) == F("0.60")
+    assert assess(redundant, {"response_latency_ms": 80, "accuracy": F("0.95")}).score == F("0.60")
     # 80 <= 100 only: 0.30
-    assert score(redundant, {"response_latency_ms": 80, "accuracy": F("0.91")}) == F("0.30")
+    assert assess(redundant, {"response_latency_ms": 80, "accuracy": F("0.91")}).score == F("0.30")
 
 
 def test_contradictory_pricing_boundary(contradictory: Rubric) -> None:
@@ -159,9 +159,9 @@ def test_score_floors_at_zero() -> None:
         """
     )
     # x = 1: 0.3 earned, 0.5 deducted, 0.3 - 0.5 = -0.2, floored to 0.
-    assert score(rubric, {"x": 1}) == 0
+    assert assess(rubric, {"x": 1}).score == 0
     # x = 101: 0.3 + 0.7 - 0.5 = 0.5
-    assert score(rubric, {"x": 101}) == F("0.5")
+    assert assess(rubric, {"x": 101}).score == F("0.5")
 
 
 EVALUATION_SORTS: dict[str, Sort] = {"i": INT, "q": REAL, "m": BitVecSort(8), "p": INT}

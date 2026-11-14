@@ -168,7 +168,7 @@ def test_internal_error_exits_4(
     def broken(*args: object, **kwargs: object) -> None:
         raise InternalError("the evaluator and the solver disagree")
 
-    monkeypatch.setattr("ptisprover.cli.run_checks", broken)
+    monkeypatch.setattr("ptisprover.cli.prove", broken)
     code, out, err = run(capsys, "check", LOOPHOLE)
     assert (code, out) == (4, "")
     assert err == (
@@ -190,17 +190,14 @@ def test_module_entry_point_in_process(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_module_runs_in_a_subprocess() -> None:
-    result = subprocess.run(
+    completed = subprocess.run(
         [sys.executable, "-m", "ptisprover", "check", LOOPHOLE, "--color", "never"],
         capture_output=True,
         text=True,
         check=False,
     )
-    assert result.returncode == 1, result.stderr
-    assert result.stdout.startswith("loophole-volume: FAIL")
-
-
-# ------------------------------------------------------------------ robustness
+    assert completed.returncode == 1, completed.stderr
+    assert completed.stdout.startswith("loophole-volume: FAIL")
 
 
 def write_ok_rubric(directory: Path) -> Path:
@@ -234,7 +231,7 @@ def test_unusable_output_locations_are_found_before_solving(
     def must_not_run(*args: object, **kwargs: object) -> None:
         raise AssertionError("the solver ran before the output location was checked")
 
-    monkeypatch.setattr("ptisprover.cli.run_checks", must_not_run)
+    monkeypatch.setattr("ptisprover.cli.prove", must_not_run)
     rubric = str(write_ok_rubric(tmp_path))
     a_file = tmp_path / "file"
     a_file.write_text("", encoding="utf-8")
@@ -274,7 +271,7 @@ def test_an_unexpected_exception_exits_4_not_1(
     def broken(*args: object, **kwargs: object) -> None:
         raise RuntimeError("something nobody planned for")
 
-    monkeypatch.setattr("ptisprover.cli.run_checks", broken)
+    monkeypatch.setattr("ptisprover.cli.prove", broken)
     code, out, err = run(capsys, "check", LOOPHOLE)
     assert (code, out) == (4, "")
     assert "RuntimeError: something nobody planned for" in err
@@ -289,18 +286,20 @@ def test_fail_on_warning_says_why_it_exits_1(capsys: pytest.CaptureFixture[str])
 
 
 def test_html_to_a_console_that_is_not_utf8() -> None:
-    result = subprocess.run(
+    completed = subprocess.run(
         [sys.executable, "-m", "ptisprover", "check", GOVCON, "--format", "html"],
         capture_output=True,
         check=False,
         env={**os.environ, "PYTHONIOENCODING": "cp1252"},
     )
-    assert result.returncode == 0, result.stderr
-    assert "\u2713" in result.stdout.decode("utf-8")
+    assert completed.returncode == 0, completed.stderr
+    assert "\u2713" in completed.stdout.decode("utf-8")
 
 
 def test_installed_console_script() -> None:
     script = Path(sys.executable).parent / "ptisprover"
-    result = subprocess.run([str(script), "--version"], capture_output=True, text=True, check=False)
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.startswith(f"ptisprover {__version__} ")
+    completed = subprocess.run(
+        [str(script), "--version"], capture_output=True, text=True, check=False
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.startswith(f"ptisprover {__version__} ")

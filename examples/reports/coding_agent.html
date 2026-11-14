@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-WDF629tGDa41B1kzBYrh4AdzVEBxnwcplKifyO56mrU='">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-JPpCZTRi0eBvBRMOzAbmLLO+2KLl2kzDMdzC0g/Ox+w='">
 <title>coding-agent: fail (PTisPROVER)</title>
 <style>
 :root {
@@ -63,8 +63,8 @@ p { margin: 0 0 .5rem; max-width: 72ch; }
 .skipped .mark, .skipped .status { color: var(--skipped); }
 .evidence { margin: .5rem 0 .25rem; }
 .evidence p { font-size: .95rem; }
-.result th { color: var(--ink); }
-.fail .result tr:first-child td { color: var(--fail); font-weight: 700; }
+.scores th { color: var(--ink); }
+.fail .scores tr:first-child td { color: var(--fail); font-weight: 700; }
 table { border-collapse: collapse; margin: .35rem 0 .75rem; font-size: .92rem; }
 th, td { text-align: left; padding: .2rem 1.1rem .2rem 0; vertical-align: top; }
 th { font-weight: 600; color: var(--soft); }
@@ -108,7 +108,7 @@ footer { margin-top: 3rem; font-size: .9rem; }
 <div class="evidence">
 <p>For example, this outcome:</p>
 <table><tr><th scope="row">tests_passed</th><td><span class="value">0.95</span></td></tr><tr><th scope="row">tests_modified</th><td><span class="value">true</span></td></tr><tr><th scope="row">lint_errors</th><td><span class="value">0</span></td></tr><tr><th scope="row">lines_changed</th><td><span class="value">0</span></td></tr></table>
-<table class="result"><tr><th scope="row">Score</th><td>1</td></tr><tr><th scope="row">Pays</th><td>tests_pass, lint_clean, focused_diff</td></tr><tr><th scope="row">Breaks</th><td>original_tests_kept</td></tr></table>
+<table class="scores"><tr><th scope="row">Score</th><td>1</td></tr><tr><th scope="row">Pays</th><td>tests_pass, lint_clean, focused_diff</td></tr><tr><th scope="row">Breaks</th><td>original_tests_kept</td></tr></table>
 </div>
 </li>
 <li class="finding pass"><span class="mark" aria-hidden="true">✓</span><p><span class="check">Criterion range</span><span class="sr"> passed</span>: &#x27;tests_pass&#x27; can pay and can fail</p></li>

@@ -67,8 +67,8 @@ def truth(rubric: Rubric) -> Truth:
     )
 
 
+# None for a bound, which _listed_domain applies instead.
 def _requirement(rubric: Rubric, path: str) -> tuple[ir.Expr, bool] | None:
-    """The condition a conflict item stands for and the value it must have; None for a bound."""
     if path.startswith("assume["):
         return rubric.assumptions[int(path[7:-1])].expr, True
     if path.startswith("criteria["):
@@ -81,8 +81,8 @@ def _requirement(rubric: Rubric, path: str) -> tuple[ir.Expr, bool] | None:
     return None
 
 
+# Only bounds that the conflict lists narrow the domain.
 def _listed_domain(variable: Variable, paths: list[str]) -> list[ir.Value]:
-    """A bool or bit-vector variable's values, narrowed only by bounds that ``paths`` list."""
     if variable.sort == BOOL:
         return [False, True]
     assert isinstance(variable.sort, BitVecSort), "exact only without int variables"
@@ -96,8 +96,8 @@ def _listed_domain(variable: Variable, paths: list[str]) -> list[ir.Value]:
     return list(range(low, high + 1))
 
 
+# Brute force over bools and bit-vectors.
 def _satisfiable(rubric: Rubric, paths: list[str]) -> bool:
-    """Brute force over bools and bit-vectors, applying only the bounds that ``paths`` list."""
     checks = [r for r in (_requirement(rubric, path) for path in paths) if r is not None]
     names = [v.name for v in rubric.variables]
     for values in itertools.product(*(_listed_domain(v, paths) for v in rubric.variables)):
@@ -108,9 +108,9 @@ def _satisfiable(rubric: Rubric, paths: list[str]) -> bool:
 
 
 def conflict_is_genuine(rubric: Rubric, paths: list[str]) -> bool:
-    """The listed items cannot all hold.
+    """The listed requirements cannot all hold.
 
-    Without int variables this uses only the listed items, so a conflict that leaves out a
+    Without int variables this uses only the listed requirements, so a conflict that leaves out a
     bound it depends on is caught. With int variables, which cannot be listed without their
     bounds, it checks the weaker statement that nothing inside all the bounds satisfies them.
     """
@@ -124,7 +124,10 @@ def conflict_is_genuine(rubric: Rubric, paths: list[str]) -> bool:
 
 
 def conflict_is_irreducible(rubric: Rubric, paths: list[str]) -> bool | None:
-    """Dropping any one item makes the rest satisfiable. None when ints prevent an exact check."""
+    """Dropping any one requirement makes the rest satisfiable.
+
+    None when int variables prevent an exact check.
+    """
     if any(v.sort == INT for v in rubric.variables):
         return None
     return all(_satisfiable(rubric, [p for p in paths if p != dropped]) for dropped in paths)

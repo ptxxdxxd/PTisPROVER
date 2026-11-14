@@ -68,19 +68,19 @@ def load_rubric(path: str | os.PathLike[str]) -> Rubric:
 
 def loads_toml(text: str) -> Rubric:
     try:
-        data = tomllib.loads(text, parse_float=Decimal)
+        document = tomllib.loads(text, parse_float=Decimal)
     except tomllib.TOMLDecodeError as exc:
         raise RubricError.single(f"invalid TOML: {exc}") from None
     except ValueError:  # Python refuses to read integers of several thousand digits
         raise RubricError.single(f"invalid TOML: {TOO_LARGE}") from None
     except RecursionError:
         raise RubricError.single("invalid TOML: values are nested too deeply") from None
-    return rubric_from_dict(data)
+    return rubric_from_dict(document)
 
 
 def loads_json(text: str) -> Rubric:
     try:
-        data = json.loads(
+        document = json.loads(
             text,
             parse_float=Decimal,
             parse_constant=_reject_constant,
@@ -96,14 +96,14 @@ def loads_json(text: str) -> Rubric:
         raise RubricError.single(f"invalid JSON: {TOO_LARGE}") from None
     except RecursionError:
         raise RubricError.single("invalid JSON: values are nested too deeply") from None
-    if not isinstance(data, dict):
-        raise RubricError.single(f"the top level must be an object, found {_kind(data)}")
-    return rubric_from_dict(data)
+    if not isinstance(document, dict):
+        raise RubricError.single(f"the top level must be an object, found {_kind(document)}")
+    return rubric_from_dict(document)
 
 
-def rubric_from_dict(data: Mapping[str, Any]) -> Rubric:
-    """Validate parsed rubric data. Numbers must be int or Decimal; floats are refused."""
-    return _Builder().build(data)
+def rubric_from_dict(document: Mapping[str, Any]) -> Rubric:
+    """Validate parsed rubric document. Numbers must be int or Decimal; floats are refused."""
+    return _Builder().build(document)
 
 
 class _JsonContentError(ValueError):
@@ -115,12 +115,12 @@ def _reject_constant(name: str) -> Any:
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
+    members: dict[str, Any] = {}
     for key, value in pairs:
-        if key in result:
+        if key in members:
             raise _JsonContentError(f"duplicate key '{key}'")
-        result[key] = value
-    return result
+        members[key] = value
+    return members
 
 
 def _kind(value: object) -> str:
@@ -148,36 +148,38 @@ class _Builder:
     def _error(self, path: str, message: str) -> None:
         self._diagnostics.append(Diagnostic(message, path=path))
 
-    def build(self, data: Mapping[str, Any]) -> Rubric:
-        if not isinstance(data, Mapping):
-            raise RubricError.single(f"the top level must be a table, found {_kind(data)}")
-        self._unknown_keys(data, TOP_LEVEL_KEYS, "")
-        for key in sorted(REQUIRED_TOP_LEVEL_KEYS - data.keys()):
+    def build(self, document: Mapping[str, Any]) -> Rubric:
+        if not isinstance(document, Mapping):
+            raise RubricError.single(f"the top level must be a table, found {_kind(document)}")
+        self._unknown_keys(document, TOP_LEVEL_KEYS, "")
+        for key in sorted(REQUIRED_TOP_LEVEL_KEYS - document.keys()):
             self._error(key, "required")
 
-        rubric_id = self._id(data.get("id"), "id") if "id" in data else None
-        description = self._text(data.get("description", ""), "description")
+        rubric_id = self._id(document.get("id"), "id") if "id" in document else None
+        description = self._text(document.get("description", ""), "description")
         threshold = None
-        if "exploit_threshold" in data:
+        if "exploit_threshold" in document:
             threshold = self._fraction_in_unit_interval(
-                data["exploit_threshold"], "exploit_threshold"
+                document["exploit_threshold"], "exploit_threshold"
             )
 
-        variables = self._variables(data.get("variables"))
+        variables = self._variables(document.get("variables"))
         sorts = None if variables is None else {v.name: v.sort for v in variables}
 
         assumptions = tuple(
             c
-            for index, item in enumerate(self._list(data.get("assume", []), "assume"))
+            for index, item in enumerate(self._list(document.get("assume", []), "assume"))
             if (c := self._condition(item, f"assume[{index}]", sorts)) is not None
         )
-        criteria = self._entries(data.get("criteria"), "criteria", sorts, self._criterion)
-        penalties = self._entries(data.get("penalties", []), "penalties", sorts, self._penalty)
-        invariants = self._entries(data.get("invariants", []), "invariants", sorts, self._invariant)
-        if isinstance(data.get("criteria"), list | tuple) and not data["criteria"]:
+        criteria = self._entries(document.get("criteria"), "criteria", sorts, self._criterion)
+        penalties = self._entries(document.get("penalties", []), "penalties", sorts, self._penalty)
+        invariants = self._entries(
+            document.get("invariants", []), "invariants", sorts, self._invariant
+        )
+        if isinstance(document.get("criteria"), list | tuple) and not document["criteria"]:
             self._error("criteria", "at least one criterion is required")
         self._check_weights(criteria)
-        self._check_unique_ids(data)
+        self._check_unique_ids(document)
 
         if self._diagnostics:
             raise RubricError(self._diagnostics)
@@ -195,10 +197,9 @@ class _Builder:
             exploit_threshold=threshold,
         )
 
-    # ------------------------------------------------------------- variables
-
+    # None when any declaration is invalid. Conditions are then not type-checked, so one
+    # bad variable does not also show up as an unknown name in every condition.
     def _variables(self, raw: Any) -> tuple[Variable, ...] | None:
-        """Declared variables, or None if any declaration is invalid."""
         if raw is None:
             return None
         if not isinstance(raw, Mapping):
@@ -280,8 +281,7 @@ class _Builder:
             return None
         return value
 
-    # ------------------------------------------------------------- entries
-
+    # One slot per entry; None marks an entry that had errors.
     def _entries(
         self,
         raw: Any,
@@ -289,7 +289,6 @@ class _Builder:
         sorts: Mapping[str, Sort] | None,
         build: Callable[[Mapping[str, Any], str, Mapping[str, Sort] | None], _T | None],
     ) -> list[_T | None]:
-        """Build each entry of a section; None marks an entry that had errors."""
         results: list[_T | None] = []
         for index, item in enumerate(self._list(raw, section)):
             path = self._entry_path(section, index, item)
@@ -364,8 +363,6 @@ class _Builder:
             return None
         return Invariant(ident, holds, description)
 
-    # ------------------------------------------------------------- checks
-
     def _check_weights(self, criteria: list[Criterion | None]) -> None:
         built = [c for c in criteria if c is not None]
         if not built or len(built) != len(criteria):
@@ -376,10 +373,10 @@ class _Builder:
                 "criteria", f"weights must sum to exactly 1, they sum to {format_number(total)}"
             )
 
-    def _check_unique_ids(self, data: Mapping[str, Any]) -> None:
+    def _check_unique_ids(self, document: Mapping[str, Any]) -> None:
         seen: dict[str, str] = {}
         for section in ("criteria", "penalties", "invariants"):
-            items = data.get(section)
+            items = document.get(section)
             if not isinstance(items, list | tuple):
                 continue
             for index, item in enumerate(items):
@@ -393,8 +390,6 @@ class _Builder:
                     self._error(path, f"id '{ident}' is already used at {seen[ident]}")
                 else:
                     seen[ident] = path
-
-    # ------------------------------------------------------------- primitives
 
     def _unknown_keys(self, item: Mapping[str, Any], allowed: frozenset[str], path: str) -> None:
         for key in item:

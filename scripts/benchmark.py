@@ -31,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
         times = []
         for _ in range(args.runs):
             start = time.perf_counter()
-            report = prove(rubric)
+            report = prove(rubric).report
             times.append((time.perf_counter() - start) * 1000)
         stats = report.solver
         print(

@@ -35,14 +35,14 @@ def test_json_values_are_exact() -> None:
 
 
 def test_report_json_for_the_loophole_fixture() -> None:
-    report = prove(load_rubric(ORIGINAL / "loophole_volume.toml"))
-    data = json.loads(report.to_json())
-    assert list(data) == ["rubric", "verdict", "counts", "solver", "findings"]
-    assert data["rubric"] == "loophole-volume"
-    assert data["verdict"] == "fail"
-    assert data["counts"] == {"pass": 6, "warn": 0, "fail": 2, "inconclusive": 0, "skipped": 0}
-    assert set(data["solver"]) == {"name", "budget_per_query", "queries", "work"}
-    exploit = data["findings"][2]
+    report = prove(load_rubric(ORIGINAL / "loophole_volume.toml")).report
+    document = json.loads(report.to_json())
+    assert list(document) == ["rubric", "verdict", "counts", "solver", "findings"]
+    assert document["rubric"] == "loophole-volume"
+    assert document["verdict"] == "fail"
+    assert document["counts"] == {"pass": 6, "warn": 0, "fail": 2, "inconclusive": 0, "skipped": 0}
+    assert set(document["solver"]) == {"name", "budget_per_query", "queries", "work"}
+    exploit = document["findings"][2]
     assert exploit == {
         "check": "exploit",
         "status": "fail",
@@ -67,12 +67,14 @@ def test_report_json_for_the_loophole_fixture() -> None:
 
 
 def test_report_json_includes_conflicts() -> None:
-    data = json.loads(prove(load_rubric(ORIGINAL / "contradictory_pricing.toml")).to_json())
-    perfect = data["findings"][1]
+    document = json.loads(
+        prove(load_rubric(ORIGINAL / "contradictory_pricing.toml")).report.to_json()
+    )
+    perfect = document["findings"][1]
     assert perfect["status"] == "fail"
     assert perfect["conflict"] == {
         "minimal": True,
-        "items": [
+        "requirements": [
             {"path": "assume[0]", "requires": "margin + discount <= 0.50"},
             {"path": 'criteria["high_margin"]', "requires": "margin >= 0.25"},
             {"path": 'criteria["aggressive_discount"]', "requires": "discount >= 0.30"},

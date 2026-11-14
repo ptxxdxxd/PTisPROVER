@@ -14,13 +14,13 @@ README = (ROOT / "README.md").read_text(encoding="utf-8")
 
 
 def test_generated_parts_of_the_readme_are_current() -> None:
-    result = subprocess.run(
+    completed = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "build_readme.py"), "--check"],
         capture_output=True,
         text=True,
         check=False,
     )
-    assert result.returncode == 0, result.stdout + result.stderr
+    assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
 def test_readme_states_the_default_budget() -> None:
@@ -45,24 +45,24 @@ def test_readme_error_example_is_what_the_loader_prints(tmp_path: Path) -> None:
         '[[criteria]]\nid = "tests_pass"\nweight = 1\nwhen = "tests_passed = 1"\n',
         encoding="utf-8",
     )
-    result = subprocess.run(
+    completed = subprocess.run(
         [sys.executable, "-m", "ptisprover", "check", "rubric.toml"],
         capture_output=True,
         text=True,
         check=False,
         cwd=tmp_path,
     )
-    assert result.returncode == cli.EXIT_INPUT
-    assert result.stderr.rstrip("\n") in README
+    assert completed.returncode == cli.EXIT_INPUT
+    assert completed.stderr.rstrip("\n") in README
 
 
 def test_readme_python_example_runs() -> None:
     start = README.index("from ptisprover import load_rubric")
     snippet = README[start : README.index("```", start)]
-    result = subprocess.run(
+    completed = subprocess.run(
         [sys.executable, "-c", snippet], capture_output=True, text=True, check=False, cwd=ROOT
     )
-    assert (result.returncode, result.stdout) == (0, "fail\n"), result.stderr
+    assert (completed.returncode, completed.stdout) == (0, "fail\n"), completed.stderr
 
 
 def test_semantics_document_states_the_limits_in_the_code() -> None:

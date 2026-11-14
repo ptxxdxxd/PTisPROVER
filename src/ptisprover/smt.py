@@ -42,7 +42,7 @@ class Query:
 
 
 @dataclass(frozen=True, slots=True)
-class Result:
+class Reply:
     """A query's answer. On SAT: the outcome found and the score Z3 gives it."""
 
     answer: Answer
@@ -223,9 +223,9 @@ class Encoding:
         return z3.If(z3.Or(*zeroing, self.ctx), zero, floored)
 
 
+# z3.Sum prints a single term as (+ x), which is not valid SMT-LIB and which cvc5
+# refuses to parse.
 def _total(terms: Sequence[z3.ArithRef]) -> z3.ArithRef:
-    """Sum of one or more terms. z3.Sum would print a single term as ``(+ x)``,
-    which is not valid SMT-LIB and which cvc5 refuses to parse."""
     total = terms[0]
     for term in terms[1:]:
         total = total + term
@@ -253,7 +253,7 @@ class Session:
         label: str,
         constraints: Sequence[z3.BoolRef] = (),
         tracked: Sequence[Requirement] = (),
-    ) -> Result:
+    ) -> Reply:
         """Is there an outcome satisfying everything given? Tracked requirements form the core."""
         ctx = self.encoding.ctx
         solver = z3.Solver(ctx=ctx)
@@ -280,27 +280,24 @@ class Session:
         if answer is Answer.UNSAT:
             core = tuple(trackers[str(t)] for t in solver.unsat_core() if str(t) in trackers)
             order = [r.path for r in tracked]
-            return Result(answer, core=tuple(sorted(core, key=order.index)))
+            return Reply(answer, core=tuple(sorted(core, key=order.index)))
         if answer is Answer.UNKNOWN:
-            return Result(answer)
+            return Reply(answer)
         z3_model = solver.model()
         model, irrational = self._read_model(z3_model)
         score = z3_model.eval(self.encoding.score, model_completion=True)
         assert z3.is_rational_value(score)
-        return Result(
+        return Reply(
             answer,
             model=model,
             score=Fraction(score.numerator_as_long(), score.denominator_as_long()),
             irrational=irrational,
         )
 
+    # Written from a second solver with every formula asserted plainly. Z3 exports a
+    # tracked assertion as (=> tracker formula), which any other solver can satisfy by
+    # setting the tracker to false.
     def _export(self, formulas: Sequence[z3.BoolRef]) -> str | None:
-        """The query as SMT-LIB2, for other solvers.
-
-        Written from a second solver with every formula asserted plainly: Z3
-        exports a tracked assertion as ``tracker => formula``, which any other
-        solver can satisfy by setting the tracker to false.
-        """
         if not self.keep_smt2:
             return None
         plain = z3.Solver(ctx=self.encoding.ctx)

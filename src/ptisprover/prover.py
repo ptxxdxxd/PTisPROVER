@@ -6,8 +6,8 @@ produces is replayed through the reference evaluator before it is reported;
 if the two disagree, ``InternalError`` is raised.
 
 Severity of an undecided question follows the problem it could be hiding:
-if that problem would fail the rubric, the result is INCONCLUSIVE; if it
-would only be a warning, the result is a warning that says it was not decided.
+if that problem would fail the rubric, the reply is INCONCLUSIVE; if it
+would only be a warning, the reply is a warning that says it was not decided.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from ptisprover.model import Invariant, Rubric
 from ptisprover.report import (
     Check,
     Conflict,
-    ConflictItem,
+    ConflictRequirement,
     Example,
     Finding,
     Report,
@@ -38,8 +38,8 @@ from ptisprover.smt import (
     Answer,
     Encoding,
     Query,
+    Reply,
     Requirement,
-    Result,
     Session,
     solver_name,
 )
@@ -49,9 +49,8 @@ MAX_STRENGTHENING_STEPS = 64
 _IRRATIONAL = "the solver's outcome uses an irrational value, which cannot be replayed exactly"
 
 
+# Only BUDGET can be cured by a larger budget.
 class _Why(Enum):
-    """Why a question was left undecided. Only BUDGET can be cured by a larger budget."""
-
     BUDGET = "budget"
     IRRATIONAL = "irrational"
     STEP_LIMIT = "step limit"
@@ -90,7 +89,7 @@ class Proof:
         files = {}
         for number, query in enumerate(self.queries, start=1):
             if query.smt2 is None:
-                raise ValueError("run_checks was not called with keep_smt2=True")
+                raise ValueError("prove was not called with keep_smt2=True")
             files[f"query-{number:03}.smt2"] = (
                 f"; rubric: {self.report.rubric_id}\n"
                 f"; question: {query.label}\n"
@@ -100,13 +99,12 @@ class Proof:
         return files
 
 
-def prove(rubric: Rubric, *, budget: int = DEFAULT_BUDGET) -> Report:
-    """Run every check on ``rubric``. ``budget`` is Z3 resource units per query."""
-    return run_checks(rubric, budget=budget).report
+def prove(rubric: Rubric, *, budget: int = DEFAULT_BUDGET, keep_smt2: bool = False) -> Proof:
+    """Run every check on ``rubric`` and return the report with the log of solver queries.
 
-
-def run_checks(rubric: Rubric, *, budget: int = DEFAULT_BUDGET, keep_smt2: bool = False) -> Proof:
-    """Like ``prove``, also returning the log of solver queries (with SMT-LIB2 if asked)."""
+    ``budget`` is Z3 resource units per query. ``keep_smt2`` keeps each query as SMT-LIB2 text,
+    for ``Proof.smt2_files``.
+    """
     prover = _Prover(rubric, budget, keep_smt2)
     report = prover.run()
     return Proof(report, tuple(prover.session.queries))
@@ -141,8 +139,6 @@ class _Prover:
             ),
         )
 
-    # ------------------------------------------------------------- helpers
-
     def _record(self, finding: Finding) -> Status:
         self.findings.append(finding)
         return finding.status
@@ -150,26 +146,26 @@ class _Prover:
     def _domain(self) -> list[z3.BoolRef]:
         return [r.formula for r in self.encoding.domain]
 
-    def _replay(self, result: Result, question: str) -> Example | None:
-        """Score the solver's outcome with the reference evaluator. None if it can't be exact."""
-        if result.irrational:
+    # None when the outcome has an irrational value, which the evaluator cannot score exactly.
+    def _replay(self, reply: Reply, question: str) -> Example | None:
+        if reply.irrational:
             return None
-        assert result.model is not None
-        assert result.score is not None
-        assessment = assess(self.rubric, result.model)
+        assert reply.model is not None
+        assert reply.score is not None
+        assessment = assess(self.rubric, reply.model)
         if not assessment.admissible:
             raise InternalError(
-                f"{question}: the solver returned {result.model}, which the reference "
+                f"{question}: the solver returned {reply.model}, which the reference "
                 "evaluator says is outside the bounds or assumptions"
             )
-        if assessment.score != result.score:
+        if assessment.score != reply.score:
             raise InternalError(
-                f"{question}: the solver scores {result.model} as "
-                f"{format_number(result.score)}, the reference evaluator as "
+                f"{question}: the solver scores {reply.model} as "
+                f"{format_number(reply.score)}, the reference evaluator as "
                 f"{format_number(assessment.score)}"
             )
         example = Example(
-            assignment=dict(result.model),
+            assignment=dict(reply.model),
             score=assessment.score,
             paying=assessment.paying,
             firing=assessment.firing,
@@ -178,28 +174,33 @@ class _Prover:
         self.pool.append(example)
         return example
 
+    # Outcomes found by earlier queries are checked first; the solver is asked only if none
+    # of them answers the question.
     def _exists(
         self, question: str, constraints: Sequence[z3.BoolRef], holds: Callable[[Example], bool]
     ) -> bool | _Why:
-        """Is there an admissible outcome for which ``holds`` is true? Or why that is unknown."""
         if any(holds(example) for example in self.pool):
             return True
-        result = self.session.ask(question, [*self._domain(), *constraints])
-        if result.answer is Answer.UNSAT:
+        reply = self.session.ask(question, [*self._domain(), *constraints])
+        if reply.answer is Answer.UNSAT:
             return False
-        if result.answer is Answer.UNKNOWN:
+        if reply.answer is Answer.UNKNOWN:
             return _Why.BUDGET
-        example = self._replay(result, question)
+        example = self._replay(reply, question)
         if example is None:
             return _Why.IRRATIONAL
         if not holds(example):
-            raise InternalError(f"{question}: the solver's outcome {example.assignment} does not")
+            raise InternalError(
+                f"{question}: the solver's outcome {example.assignment} "
+                "does not have the property asked for"
+            )
         return True
 
+    # Deletion: drop each requirement in turn and keep it out if the rest still conflict.
+    # The result is irreducible, which is not always the smallest conflict.
     def _minimize(
         self, question: str, core: Sequence[str], candidates: Sequence[Requirement]
     ) -> Conflict:
-        """Shrink an unsat core by deletion until removing any item makes it satisfiable."""
         by_path = {r.path: r for r in candidates}
         current = [by_path[path] for path in core]
         settled: set[str] = set()
@@ -208,24 +209,22 @@ class _Prover:
             pending = [r for r in current if r.path not in settled]
             if not pending:
                 break
-            item = pending[0]
-            trial = [r for r in current if r.path != item.path]
-            result = self.session.ask(f"{question}, without {item.path}", tracked=trial)
-            if result.answer is Answer.UNSAT:
-                keep = set(result.core)
+            candidate = pending[0]
+            trial = [r for r in current if r.path != candidate.path]
+            reply = self.session.ask(f"{question}, without {candidate.path}", tracked=trial)
+            if reply.answer is Answer.UNSAT:
+                keep = set(reply.core)
                 current = [r for r in trial if r.path in keep] if keep else trial
             else:
-                settled.add(item.path)
-                minimal = minimal and result.answer is Answer.SAT
-        return Conflict(tuple(ConflictItem(r.path, r.requires) for r in current), minimal)
-
-    # ------------------------------------------------------------- checks
+                settled.add(candidate.path)
+                minimal = minimal and reply.answer is Answer.SAT
+        return Conflict(tuple(ConflictRequirement(r.path, r.requires) for r in current), minimal)
 
     def _outcomes_exist(self) -> Status:
         question = "does any outcome satisfy the bounds and assumptions"
         domain = self.encoding.domain
-        result = self.session.ask(question, tracked=domain)
-        if result.answer is Answer.UNSAT:
+        reply = self.session.ask(question, tracked=domain)
+        if reply.answer is Answer.UNSAT:
             return self._record(
                 Finding(
                     Check.OUTCOMES,
@@ -233,10 +232,10 @@ class _Prover:
                     (),
                     "no outcome satisfies the bounds and assumptions, so every other check "
                     "would be vacuous",
-                    conflict=self._minimize(question, result.core, domain),
+                    conflict=self._minimize(question, reply.core, domain),
                 )
             )
-        if result.answer is Answer.UNKNOWN:
+        if reply.answer is Answer.UNKNOWN:
             return self._record(
                 Finding(
                     Check.OUTCOMES,
@@ -246,7 +245,7 @@ class _Prover:
                     "and assumptions",
                 )
             )
-        example = self._replay(result, question)
+        example = self._replay(reply, question)
         if example is None:
             return self._record(Finding(Check.OUTCOMES, Status.INCONCLUSIVE, (), _IRRATIONAL))
         return self._record(
@@ -287,20 +286,20 @@ class _Prover:
             *(encoding.criterion_pays(c.id) for c in self.rubric.criteria),
             *(encoding.penalty_stays_off(p.id) for p in self.rubric.penalties),
         ]
-        result = self.session.ask(question, tracked=requirements)
-        if result.answer is Answer.UNSAT:
-            conflict = self._minimize(question, result.core, requirements)
+        reply = self.session.ask(question, tracked=requirements)
+        if reply.answer is Answer.UNSAT:
+            conflict = self._minimize(question, reply.core, requirements)
             self._record(
                 Finding(
                     Check.PERFECT_SCORE,
                     Status.FAIL,
-                    tuple([i.path for i in conflict.items]),
+                    tuple([r.path for r in conflict.requirements]),
                     "no outcome can score 1, because these requirements cannot all hold",
                     conflict=conflict,
                 )
             )
             return
-        if result.answer is Answer.UNKNOWN:
+        if reply.answer is Answer.UNKNOWN:
             self._record(
                 Finding(
                     Check.PERFECT_SCORE,
@@ -310,7 +309,7 @@ class _Prover:
                 )
             )
             return
-        example = self._replay(result, question)
+        example = self._replay(reply, question)
         if example is None:
             self._record(Finding(Check.PERFECT_SCORE, Status.INCONCLUSIVE, (), _IRRATIONAL))
             return
@@ -340,15 +339,16 @@ class _Prover:
         for invariant in self.rubric.invariants:
             self._exploit(invariant)
 
+    # Iterative strengthening: ask for a strictly higher score until the solver proves
+    # none exists. The final unsat answer is the proof that the score is the maximum.
     def _exploit(self, invariant: Invariant) -> None:
-        """Highest score reachable while breaking ``invariant``, by iterative strengthening."""
         ident = invariant.id
         threshold = self.rubric.exploit_threshold
         broken = z3.Not(self.encoding.invariants[ident], self.encoding.ctx)
         base = [*self._domain(), broken]
         question = f"can '{ident}' be broken"
-        result = self.session.ask(question, base)
-        if result.answer is Answer.UNSAT:
+        reply = self.session.ask(question, base)
+        if reply.answer is Answer.UNSAT:
             self._record(
                 Finding(
                     Check.EXPLOIT,
@@ -358,7 +358,7 @@ class _Prover:
                 )
             )
             return
-        if result.answer is Answer.UNKNOWN:
+        if reply.answer is Answer.UNKNOWN:
             self._record(
                 Finding(
                     Check.EXPLOIT,
@@ -368,7 +368,7 @@ class _Prover:
                 )
             )
             return
-        best = self._exploit_example(result, question, ident)
+        best = self._exploit_example(reply, question, ident)
         if best is None:
             self._record(Finding(Check.EXPLOIT, Status.INCONCLUSIVE, (ident,), _IRRATIONAL))
             return
@@ -376,11 +376,11 @@ class _Prover:
         for _ in range(MAX_STRENGTHENING_STEPS):
             question = f"can breaking '{ident}' score above {format_number(best.score)}"
             above = self.encoding.score > self.encoding.rational(best.score)
-            result = self.session.ask(question, [*base, above])
-            if result.answer is not Answer.SAT:
-                stopped = None if result.answer is Answer.UNSAT else _Why.BUDGET
+            reply = self.session.ask(question, [*base, above])
+            if reply.answer is not Answer.SAT:
+                stopped = None if reply.answer is Answer.UNSAT else _Why.BUDGET
                 break
-            better = self._exploit_example(result, question, ident)
+            better = self._exploit_example(reply, question, ident)
             if better is None:
                 stopped = _Why.IRRATIONAL
                 break
@@ -415,8 +415,8 @@ class _Prover:
             )
         )
 
-    def _exploit_example(self, result: Result, question: str, ident: str) -> Example | None:
-        example = self._replay(result, question)
+    def _exploit_example(self, reply: Reply, question: str, ident: str) -> Example | None:
+        example = self._replay(reply, question)
         if example is not None and ident not in example.broken:
             raise InternalError(f"{question}: the solver's outcome does not break '{ident}'")
         return example
@@ -461,7 +461,6 @@ class _Prover:
         self._overlaps(both_ways)
 
     def _overlaps(self, idents: list[str]) -> None:
-        """Pairs where one criterion pays whenever another does."""
         encoding, ctx = self.encoding, self.encoding.ctx
         weights = {c.id: c.weight for c in self.rubric.criteria}
         implies: dict[tuple[str, str], bool | _Why] = {}

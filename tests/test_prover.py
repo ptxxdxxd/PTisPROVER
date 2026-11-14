@@ -14,9 +14,9 @@ from ptisprover.errors import InternalError
 from ptisprover.evaluate import Assessment, assess
 from ptisprover.loader import load_rubric, loads_toml
 from ptisprover.model import Rubric
-from ptisprover.prover import prove, run_checks
+from ptisprover.prover import prove
 from ptisprover.report import Check, Finding, Report, Status
-from ptisprover.smt import Answer, Query, Requirement, Result, Session
+from ptisprover.smt import Answer, Query, Reply, Requirement, Session
 from tests.conftest import ORIGINAL
 
 HEADER = 'id = "t"\nexploit_threshold = 0.85\n'
@@ -50,12 +50,10 @@ when = "x == 1 or x == 5"
 """
 
 
-# ------------------------------------------------------------------ findings
-
-
 def test_original_fixture_verdicts() -> None:
     verdicts = {
-        path.stem: prove(load_rubric(path)).verdict for path in sorted(ORIGINAL.glob("*.toml"))
+        path.stem: prove(load_rubric(path)).report.verdict
+        for path in sorted(ORIGINAL.glob("*.toml"))
     }
     assert verdicts == {
         "contradictory_pricing": Status.FAIL,
@@ -66,12 +64,12 @@ def test_original_fixture_verdicts() -> None:
 
 
 def test_contradiction_is_reported_as_a_minimal_conflict() -> None:
-    report = prove(load_rubric(ORIGINAL / "contradictory_pricing.toml"))
+    report = prove(load_rubric(ORIGINAL / "contradictory_pricing.toml")).report
     finding = only(report, Check.PERFECT_SCORE)
     assert finding.status is Status.FAIL
     assert finding.conflict is not None
     assert finding.conflict.minimal
-    assert [(i.path, i.requires) for i in finding.conflict.items] == [
+    assert [(i.path, i.requires) for i in finding.conflict.requirements] == [
         ("assume[0]", "margin + discount <= 0.50"),
         ('criteria["high_margin"]', "margin >= 0.25"),
         ('criteria["aggressive_discount"]', "discount >= 0.30"),
@@ -79,7 +77,7 @@ def test_contradiction_is_reported_as_a_minimal_conflict() -> None:
 
 
 def test_worst_exploits_of_the_govcon_fixture() -> None:
-    report = prove(load_rubric(ORIGINAL / "govcon_quote.toml"))
+    report = prove(load_rubric(ORIGINAL / "govcon_quote.toml")).report
     worst = {
         f.subjects[0]: (f.status, f.max_score, f.max_proven)
         for f in report.findings
@@ -97,11 +95,11 @@ def test_worst_exploits_of_the_govcon_fixture() -> None:
 
 
 def test_dead_criterion() -> None:
-    report = prove(rubric(SIMPLE.replace('"x == 1 or x == 5"', '"x > 10"')))
+    report = prove(rubric(SIMPLE.replace('"x == 1 or x == 5"', '"x > 10"'))).report
     assert only(report, Check.CRITERION, ("odd_one",)).message == "'odd_one' can never pay"
     perfect = only(report, Check.PERFECT_SCORE)
     assert perfect.conflict is not None
-    assert [i.path for i in perfect.conflict.items] == [
+    assert [i.path for i in perfect.conflict.requirements] == [
         "variables.x.max",
         'criteria["odd_one"]',
     ]
@@ -109,14 +107,14 @@ def test_dead_criterion() -> None:
 
 
 def test_free_criterion() -> None:
-    report = prove(rubric(SIMPLE.replace('"x == 1 or x == 5"', '"x >= 0"')))
+    report = prove(rubric(SIMPLE.replace('"x == 1 or x == 5"', '"x >= 0"'))).report
     finding = only(report, Check.CRITERION, ("odd_one",))
     assert finding.status is Status.FAIL
     assert finding.message == "'odd_one' pays for every admissible outcome: free reward"
 
 
 def test_equivalent_criteria() -> None:
-    report = prove(rubric(SIMPLE.replace('"x == 1 or x == 5"', '"x > 2"')))
+    report = prove(rubric(SIMPLE.replace('"x == 1 or x == 5"', '"x > 2"'))).report
     finding = only(report, Check.OVERLAP)
     assert (finding.status, finding.subjects) == (Status.WARN, ("high", "odd_one"))
     assert finding.message == (
@@ -127,7 +125,7 @@ def test_equivalent_criteria() -> None:
 
 
 def test_one_way_implication_is_a_warning() -> None:
-    report = prove(load_rubric(ORIGINAL / "redundant_latency.toml"))
+    report = prove(load_rubric(ORIGINAL / "redundant_latency.toml")).report
     finding = only(report, Check.OVERLAP)
     assert finding.subjects == ("fast_response", "standard_response")
     assert finding.status is Status.WARN
@@ -135,7 +133,7 @@ def test_one_way_implication_is_a_warning() -> None:
 
 
 def test_independent_criteria_pass_the_overlap_check() -> None:
-    finding = only(prove(rubric(SIMPLE)), Check.OVERLAP)
+    finding = only(prove(rubric(SIMPLE)).report, Check.OVERLAP)
     assert finding.status is Status.PASS
     assert finding.message == "no criterion pays whenever another does (2 ordered pairs checked)"
 
@@ -149,7 +147,9 @@ def test_independent_criteria_pass_the_overlap_check() -> None:
     ],
 )
 def test_penalty_ranges(when: str, status: Status, message: str) -> None:
-    report = prove(rubric(SIMPLE + f'[[penalties]]\nid = "p"\ndeduct = 0.1\nwhen = "{when}"\n'))
+    report = prove(
+        rubric(SIMPLE + f'[[penalties]]\nid = "p"\ndeduct = 0.1\nwhen = "{when}"\n')
+    ).report
     finding = only(report, Check.PENALTY)
     assert (finding.status, finding.message) == (status, message)
 
@@ -157,23 +157,23 @@ def test_penalty_ranges(when: str, status: Status, message: str) -> None:
 def test_empty_domain_fails_and_skips_everything_else() -> None:
     body = SIMPLE.replace("[variables]", 'assume = ["x > 5"]\n[variables]')
     body += '[[penalties]]\nid = "p"\nzero = true\nwhen = "x == 0"\n'
-    report = prove(rubric(body))
+    report = prove(rubric(body)).report
     outcomes = report.findings[0]
     assert outcomes.status is Status.FAIL
     assert outcomes.conflict is not None
-    assert [i.path for i in outcomes.conflict.items] == ["variables.x.max", "assume[0]"]
+    assert [i.path for i in outcomes.conflict.requirements] == ["variables.x.max", "assume[0]"]
     assert [f.status for f in report.findings[1:]] == [Status.SKIPPED] * 5
     assert report.verdict is Status.FAIL
 
 
 def test_missing_invariants_are_a_warning_not_a_pass() -> None:
-    finding = only(prove(rubric(SIMPLE)), Check.EXPLOIT)
+    finding = only(prove(rubric(SIMPLE)).report, Check.EXPLOIT)
     assert finding.status is Status.WARN
     assert finding.message == "no invariants declared, so the reward-hacking check did not run"
 
 
 def test_invariant_implied_by_the_bounds_cannot_be_broken() -> None:
-    report = prove(rubric(SIMPLE + '[[invariants]]\nid = "i"\nholds = "x <= 5"\n'))
+    report = prove(rubric(SIMPLE + '[[invariants]]\nid = "i"\nholds = "x <= 5"\n')).report
     finding = only(report, Check.EXPLOIT)
     assert finding.status is Status.PASS
     assert finding.message == "'i' holds for every admissible outcome"
@@ -196,7 +196,7 @@ def test_irrational_outcomes_are_not_replayed_and_not_passed() -> None:
             holds = "r * r != 2"
             """
         )
-    )
+    ).report
     irrational = "the solver's outcome uses an irrational value, which cannot be replayed exactly"
     assert only(report, Check.PERFECT_SCORE).message == irrational
     assert only(report, Check.EXPLOIT).message == irrational
@@ -210,11 +210,8 @@ def test_irrational_domain_is_inconclusive() -> None:
         'x = { type = "int", min = 0, max = 5 }\nr = "real"',
     )
     body = body.replace("[variables]", 'assume = ["r * r == 2"]\n[variables]')
-    finding = prove(rubric(body)).findings[0]
+    finding = prove(rubric(body)).report.findings[0]
     assert (finding.check, finding.status) == (Check.OUTCOMES, Status.INCONCLUSIVE)
-
-
-# ------------------------------------------------------------------ undecided
 
 
 @pytest.fixture
@@ -229,10 +226,10 @@ def undecided(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], None]:
             label: str,
             constraints: Sequence[z3.BoolRef] = (),
             tracked: Sequence[Requirement] = (),
-        ) -> Result:
+        ) -> Reply:
             if re.search(pattern, label):
                 self.queries.append(Query(label, Answer.UNKNOWN, 0))
-                return Result(Answer.UNKNOWN)
+                return Reply(Answer.UNKNOWN)
             return real_ask(self, label, constraints, tracked)
 
         monkeypatch.setattr(Session, "ask", ask)
@@ -316,7 +313,7 @@ def test_undecided_questions_are_never_passed(
     message: str,
 ) -> None:
     undecided(pattern)
-    report = prove(rubric(body))
+    report = prove(rubric(body)).report
     matching = [f for f in report.findings if f.check is check and f.message == message]
     assert [f.status for f in matching] == [status]
     if status is Status.INCONCLUSIVE:
@@ -325,7 +322,9 @@ def test_undecided_questions_are_never_passed(
 
 def test_undecided_minimisation_is_marked_not_minimal(undecided: Callable[[str], None]) -> None:
     undecided(", without ")
-    finding = only(prove(load_rubric(ORIGINAL / "contradictory_pricing.toml")), Check.PERFECT_SCORE)
+    finding = only(
+        prove(load_rubric(ORIGINAL / "contradictory_pricing.toml")).report, Check.PERFECT_SCORE
+    )
     assert finding.conflict is not None
     assert not finding.conflict.minimal
 
@@ -334,7 +333,7 @@ def test_unproven_maximum_below_threshold_is_inconclusive(
     undecided: Callable[[str], None],
 ) -> None:
     undecided("^can breaking 'margin_floor' score above")
-    report = prove(load_rubric(ORIGINAL / "govcon_quote.toml"))
+    report = prove(load_rubric(ORIGINAL / "govcon_quote.toml")).report
     finding = only(report, Check.EXPLOIT, ("margin_floor",))
     assert finding.status is Status.INCONCLUSIVE
     assert finding.max_proven is False
@@ -346,15 +345,12 @@ def test_unproven_maximum_at_or_above_threshold_still_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(prover_module, "MAX_STRENGTHENING_STEPS", 0)
-    finding = only(prove(load_rubric(LOOPHOLE)), Check.EXPLOIT, ("positive_margin",))
+    finding = only(prove(load_rubric(LOOPHOLE)).report, Check.EXPLOIT, ("positive_margin",))
     assert finding.status is Status.FAIL
     assert finding.max_proven is False
     assert finding.message == (
         "breaking 'positive_margin' can still score 0.9, at or above the threshold 0.85"
     )
-
-
-# ------------------------------------------------------------------ guard rails
 
 
 def corrupt_evaluator(
@@ -397,9 +393,9 @@ def fake_answer(
         label: str,
         constraints: Sequence[z3.BoolRef] = (),
         tracked: Sequence[Requirement] = (),
-    ) -> Result:
+    ) -> Reply:
         if re.search(pattern, label):
-            return Result(Answer.SAT, model=model, score=score)
+            return Reply(Answer.SAT, model=model, score=score)
         return real_ask(self, label, constraints, tracked)
 
     monkeypatch.setattr(Session, "ask", ask)
@@ -437,23 +433,20 @@ def test_an_irrational_strengthening_step_stops_without_proof(
         label: str,
         constraints: Sequence[z3.BoolRef] = (),
         tracked: Sequence[Requirement] = (),
-    ) -> Result:
+    ) -> Reply:
         if label.startswith("can breaking 'margin_floor' score above"):
-            return Result(Answer.SAT, model={}, score=Fraction(1), irrational=True)
+            return Reply(Answer.SAT, model={}, score=Fraction(1), irrational=True)
         return real_ask(self, label, constraints, tracked)
 
     monkeypatch.setattr(Session, "ask", ask)
     finding = only(
-        prove(load_rubric(ORIGINAL / "govcon_quote.toml")), Check.EXPLOIT, ("margin_floor",)
+        prove(load_rubric(ORIGINAL / "govcon_quote.toml")).report, Check.EXPLOIT, ("margin_floor",)
     )
     assert (finding.status, finding.max_proven) == (Status.INCONCLUSIVE, False)
 
 
-# ------------------------------------------------------------------ bookkeeping
-
-
 def test_query_log_and_solver_stats() -> None:
-    proof = run_checks(load_rubric(LOOPHOLE), budget=1_000_000, keep_smt2=True)
+    proof = prove(load_rubric(LOOPHOLE), budget=1_000_000, keep_smt2=True)
     stats = proof.report.solver
     assert stats.solver.startswith("z3 ")
     assert stats.budget_per_query == 1_000_000
@@ -464,7 +457,7 @@ def test_query_log_and_solver_stats() -> None:
 
 
 def test_findings_follow_declaration_order() -> None:
-    report = prove(load_rubric(ORIGINAL / "govcon_quote.toml"))
+    report = prove(load_rubric(ORIGINAL / "govcon_quote.toml")).report
     assert [f.check for f in report.findings] == [
         Check.OUTCOMES,
         Check.PERFECT_SCORE,
@@ -488,7 +481,7 @@ def test_minimisation_shrinks_a_bloated_conflict_to_the_real_one() -> None:
     requirements = [*encoding.domain, *(encoding.criterion_pays(c.id) for c in rubric.criteria)]
     conflict = prover._minimize("padded", [r.path for r in requirements], requirements)
     assert conflict.minimal
-    assert [i.path for i in conflict.items] == [
+    assert [i.path for i in conflict.requirements] == [
         "assume[0]",
         'criteria["high_margin"]',
         'criteria["aggressive_discount"]',
@@ -498,7 +491,7 @@ def test_minimisation_shrinks_a_bloated_conflict_to_the_real_one() -> None:
 def test_an_exploit_exactly_at_the_threshold_fails() -> None:
     body = SIMPLE.replace('"x == 1 or x == 5"', '"x == 5"')
     body += '[[invariants]]\nid = "not_three"\nholds = "x != 3"\n'
-    report = prove(loads_toml(HEADER.replace("0.85", "0.5") + body))
+    report = prove(loads_toml(HEADER.replace("0.85", "0.5") + body)).report
     finding = only(report, Check.EXPLOIT)
     # x = 3 is the only way to break the invariant: 'high' pays 0.5, 'odd_one' does not.
     assert (finding.status, finding.max_score, finding.max_proven) == (
@@ -515,7 +508,7 @@ def test_bit_vector_ordering_is_unsigned() -> None:
             '[variables]\nlevel = "bv8"\n'
             '[[criteria]]\nid = "top_half"\nweight = 1\nwhen = "127 < level"\n'
         )
-    )
+    ).report
     assert only(report, Check.CRITERION).status is Status.PASS
     example = only(report, Check.PERFECT_SCORE).example
     assert example is not None
@@ -538,7 +531,7 @@ def test_bit_vector_bounds_are_unsigned(bounds: str, condition: str) -> None:
             f'[variables]\nlevel = {{ type = "bv8", {bounds} }}\n'
             f'[[criteria]]\nid = "c"\nweight = 1\nwhen = "{condition}"\n'
         )
-    )
+    ).report
     assert only(report, Check.CRITERION).status is Status.PASS
 
 
@@ -546,7 +539,7 @@ def test_the_step_limit_is_named_when_it_stops_the_search(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(prover_module, "MAX_STRENGTHENING_STEPS", 0)
-    report = prove(load_rubric(ORIGINAL / "govcon_quote.toml"))
+    report = prove(load_rubric(ORIGINAL / "govcon_quote.toml")).report
     finding = only(report, Check.EXPLOIT, ("no_uncapped_exposure",))
     # Uncapped liability zeroes the score, so the first outcome found scores 0.
     assert finding.status is Status.INCONCLUSIVE
@@ -562,7 +555,7 @@ def test_an_irrational_outcome_is_not_blamed_on_the_budget() -> None:
             '[variables]\nr = { type = "real", min = 0, max = 2 }\n'
             '[[criteria]]\nid = "root_two"\nweight = 1\nwhen = "r * r == 2"\n'
         )
-    )
+    ).report
     message = only(report, Check.CRITERION).message
     assert message == (
         "could not decide whether 'root_two' can pay: the solver's outcome uses an irrational "
@@ -577,5 +570,5 @@ def test_a_long_flat_chain_is_checked() -> None:
             '[variables]\nx = { type = "int", min = 0, max = 500 }\n'
             f'[[criteria]]\nid = "c"\nweight = 1\nwhen = "{chain}"\n'
         )
-    )
+    ).report
     assert only(report, Check.CRITERION).status is Status.PASS

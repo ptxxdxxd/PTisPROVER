@@ -124,11 +124,10 @@ Exit codes make it usable as a CI gate:
 From Python:
 
 ```python
-from ptisprover import load_rubric
-from ptisprover.prover import prove
+from ptisprover import load_rubric, prove
 
-report = prove(load_rubric("examples/coding_agent.toml"))
-print(report.verdict)  # fail
+proof = prove(load_rubric("examples/coding_agent.toml"))
+print(proof.report.verdict)  # fail
 ```
 
 ## Writing a rubric

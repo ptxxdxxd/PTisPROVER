@@ -20,7 +20,7 @@ import z3
 from ptisprover import __version__
 from ptisprover.errors import InternalError, RubricError
 from ptisprover.loader import load_rubric
-from ptisprover.prover import run_checks
+from ptisprover.prover import prove
 from ptisprover.render import render_html, render_text
 from ptisprover.report import Status
 from ptisprover.schema import rubric_schema_text
@@ -34,9 +34,8 @@ EXIT_INPUT = 3
 EXIT_INTERNAL = 4
 
 
+# argparse exits with 2 on bad usage, but 2 means inconclusive here. Usage errors exit 3.
 class _Parser(argparse.ArgumentParser):
-    """argparse exits with 2 on bad usage, which here means 'inconclusive'. Use 3."""
-
     def error(self, message: str) -> NoReturn:
         self.print_usage(sys.stderr)
         self.exit(EXIT_INPUT, f"{self.prog}: error: {message}\n")
@@ -136,7 +135,7 @@ def _check(args: argparse.Namespace) -> int:
             return _input_error(f"cannot write to {args.emit_smt2}: {exc.strerror or exc}")
 
     try:
-        proof = run_checks(rubric, budget=args.budget, keep_smt2=args.emit_smt2 is not None)
+        proof = prove(rubric, budget=args.budget, keep_smt2=args.emit_smt2 is not None)
     except InternalError as exc:
         sys.stderr.write(f"ptisprover: internal error, please report it: {exc}\n")
         return EXIT_INTERNAL
@@ -177,8 +176,8 @@ def _check(args: argparse.Namespace) -> int:
     return EXIT_PASS
 
 
+# UTF-8 with \n line endings on every platform, so reports are byte-identical.
 def _write(path: Path, text: str) -> None:
-    """Write UTF-8 with \\n line endings on every platform, so reports are byte-identical."""
     path.write_text(text, encoding="utf-8", newline="\n")
 
 

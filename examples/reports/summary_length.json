@@ -46,7 +46,7 @@
       "message": "no outcome can score 1, because these requirements cannot all hold",
       "conflict": {
         "minimal": true,
-        "items": [
+        "requirements": [
           {
             "path": "assume[0]",
             "requires": "words >= 15 * key_points"

@@ -26,10 +26,10 @@ from ptisprover.parser import parse_expression
 from ptisprover.sorts import BOOL, INT, REAL, BitVecSort, Sort, is_numeric
 
 
+# A numeric literal's sort is fixed only when it meets an operand: 1 is an int next
+# to an int and a real next to a real.
 @dataclass(frozen=True, slots=True)
 class _Literal:
-    """A numeric literal whose sort is not fixed until it meets an operand."""
-
     value: int | Fraction
     is_decimal: bool
     span: syntax.Span
@@ -156,7 +156,6 @@ class _Checker:
     def _unify(
         self, left: _Elaborated, right: _Elaborated, node: syntax.Binary
     ) -> tuple[ir.Expr, ir.Expr]:
-        """Bring both operands to one sort, applying the coercion rules."""
         if isinstance(left, _Literal) and isinstance(right, _Literal):
             sort = REAL if (left.is_decimal or right.is_decimal) else INT
             return ir.Const(sort, _as(left.value, sort)), ir.Const(sort, _as(right.value, sort))
@@ -178,10 +177,10 @@ class _Checker:
             )
         self._fail(f"'{node.op}' cannot combine {left.sort} and {right.sort}", node.op_span)
 
+    # Always returns (expr, literal), in that order.
     def _meet(
         self, expr: ir.Expr, literal: _Literal, node: syntax.Binary
     ) -> tuple[ir.Expr, ir.Expr]:
-        """Give ``literal`` the sort of ``expr``. Returns (expr, literal) in that order."""
         sort = expr.sort
         if sort == INT:
             if literal.is_decimal:

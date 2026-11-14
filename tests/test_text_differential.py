@@ -166,7 +166,7 @@ THRESHOLDS = ["0.05", "0.3", "0.5", "0.75", "1"]
 
 @dataclass(frozen=True)
 class Case:
-    data: dict[str, Any]  # what the loader is given
+    document: dict[str, Any]  # what the loader is given
     env: list[Var]
     criteria: list[tuple[str, Fraction, str]]  # id, weight, Python condition
     penalties: list[tuple[str, Fraction | None, str]]
@@ -188,7 +188,7 @@ def cases(draw: st.DrawFn) -> Case:
     invariants = [(f"i{i}", *draw(condition)) for i in range(draw(st.integers(0, 2)))]
     assumptions = [draw(condition) for _ in range(draw(st.integers(0, 1)))]
     threshold = draw(st.sampled_from(THRESHOLDS))
-    data = {
+    document = {
         "id": "generated",
         "exploit_threshold": Decimal(threshold),
         "assume": [text for text, _ in assumptions],
@@ -203,7 +203,7 @@ def cases(draw: st.DrawFn) -> Case:
         "invariants": [{"id": ident, "holds": text} for ident, text, _ in invariants],
     }
     return Case(
-        data=data,
+        document=document,
         env=env,
         criteria=[(ident, Fraction(w), py) for ident, w, _, py in criteria],
         penalties=[
@@ -253,7 +253,7 @@ def truth_by_python(case: Case) -> Truth:
 @settings(max_examples=EXAMPLES, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(cases())
 def test_rubric_text_agrees_with_an_independent_evaluator(case: Case) -> None:
-    report = prove(rubric_from_dict(case.data))
+    report = prove(rubric_from_dict(case.document)).report
     assert_report_matches(
         report,
         truth_by_python(case),

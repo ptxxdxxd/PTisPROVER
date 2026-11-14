@@ -11,7 +11,7 @@ import pytest
 
 from ptisprover.cli import main
 from ptisprover.loader import load_rubric, loads_toml
-from ptisprover.prover import run_checks
+from ptisprover.prover import prove
 from tests.conftest import ORIGINAL
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -27,9 +27,9 @@ def cross_check(*args: str | Path) -> subprocess.CompletedProcess[str]:
 
 def test_cvc5_agrees_on_every_example_and_fixture_query() -> None:
     rubrics = sorted((ROOT / "examples").glob("*.toml")) + sorted(ORIGINAL.glob("*.toml"))
-    result = cross_check("--strict", *rubrics)
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert ", 0 undecided, 0 disagree" in result.stdout
+    completed = cross_check("--strict", *rubrics)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert ", 0 undecided, 0 disagree" in completed.stdout
 
 
 def test_emitted_files_carry_the_question_and_answer(tmp_path: Path) -> None:
@@ -49,13 +49,13 @@ def test_emitted_files_carry_the_question_and_answer(tmp_path: Path) -> None:
         "; z3: sat",
         "(set-logic ALL)",
     ]
-    result = cross_check("--strict", out)
-    assert result.returncode == 0, result.stdout + result.stderr
+    completed = cross_check("--strict", out)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
 def test_tracked_requirements_are_exported_as_plain_assertions() -> None:
     """Z3 would export them as 'tracker => formula', which is satisfiable by itself."""
-    proof = run_checks(load_rubric(CONTRADICTORY), keep_smt2=True)
+    proof = prove(load_rubric(CONTRADICTORY), keep_smt2=True)
     unsat = next(q for q in proof.queries if q.label == "can an outcome score 1")
     assert unsat.smt2 is not None
     assert "req!" not in unsat.smt2
@@ -69,15 +69,15 @@ def test_a_single_criterion_score_is_valid_smt_lib(tmp_path: Path) -> None:
         '[[penalties]]\nid = "p"\ndeduct = 0.5\nwhen = "x == 9"\n'
         '[[invariants]]\nid = "i"\nholds = "x != 7"\n'
     )
-    proof = run_checks(rubric, keep_smt2=True)
+    proof = prove(rubric, keep_smt2=True)
     assert any("score above" in q.label for q in proof.queries)
     assert all(q.smt2 is not None and "(+ (ite" not in q.smt2 for q in proof.queries)
     out = tmp_path / "queries"
     out.mkdir()
     for name, text in proof.smt2_files().items():
         (out / name).write_text(text, encoding="utf-8")
-    result = cross_check("--strict", out)
-    assert result.returncode == 0, result.stdout + result.stderr
+    completed = cross_check("--strict", out)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
 @pytest.mark.parametrize(
@@ -95,11 +95,11 @@ def test_a_disagreement_is_reported(
     main(["check", str(CONTRADICTORY), "--emit-smt2", str(out), "-o", str(tmp_path / "r")])
     first = out / "query-001.smt2"
     first.write_text(edit(first.read_text(encoding="utf-8")), encoding="utf-8")
-    result = cross_check(out)
-    assert result.returncode == 1
-    assert f"{expected}   {first}: z3 " in result.stdout
-    assert "question: does any outcome satisfy the bounds and assumptions" in result.stdout
-    assert ", 1 disagree" in result.stdout
+    completed = cross_check(out)
+    assert completed.returncode == 1
+    assert f"{expected}   {first}: z3 " in completed.stdout
+    assert "question: does any outcome satisfy the bounds and assumptions" in completed.stdout
+    assert ", 1 disagree" in completed.stdout
 
 
 def test_cvc5_undecided_fails_only_in_strict_mode(tmp_path: Path) -> None:
@@ -116,6 +116,6 @@ def test_cvc5_undecided_fails_only_in_strict_mode(tmp_path: Path) -> None:
 
 
 def test_smt2_files_need_the_query_text() -> None:
-    proof = run_checks(load_rubric(CONTRADICTORY))
+    proof = prove(load_rubric(CONTRADICTORY))
     with pytest.raises(ValueError, match="keep_smt2=True"):
         proof.smt2_files()

@@ -25,7 +25,7 @@ EXAMPLES = int(os.environ.get("DIFFERENTIAL_EXAMPLES", "500"))
 @settings(max_examples=EXAMPLES, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(finite_rubrics())
 def test_prover_agrees_with_brute_force(rubric: Rubric) -> None:
-    report = prove(rubric)
+    report = prove(rubric).report
     assert_report_matches(
         report,
         oracle.truth(rubric),
@@ -42,7 +42,7 @@ def test_prover_agrees_with_brute_force(rubric: Rubric) -> None:
     for check in (Check.OUTCOMES, Check.PERFECT_SCORE):
         (finding,) = by_check(report, check)
         if finding.conflict is not None:
-            paths = [item.path for item in finding.conflict.items]
+            paths = [requirement.path for requirement in finding.conflict.requirements]
             assert finding.conflict.minimal
             assert oracle.conflict_is_genuine(rubric, paths)
             assert oracle.conflict_is_irreducible(rubric, paths) is not False

@@ -54,8 +54,8 @@ def solver_line(report: Report, version: str) -> str:
     )
 
 
+# A message can start with a quoted identifier, which must keep its case.
 def _sentence(message: str) -> str:
-    """Capitalise a message that starts with a word; never touch a quoted identifier."""
     return message[:1].upper() + message[1:] if message[:1].islower() else message
 
 
@@ -87,8 +87,6 @@ def _scores_line(example: Example) -> str:
         parts.append("breaks " + ", ".join(example.broken))
     return "; ".join(parts)
 
-
-# ---------------------------------------------------------------- terminal
 
 _ANSI = {
     Status.PASS: "\033[32m",
@@ -129,16 +127,14 @@ def render_text(report: Report, version: str, *, color: bool = False) -> str:
             lines.append(f"{indent}{_scores_line(finding.example)}")
         if finding.conflict is not None:
             lines.append(f"{indent}conflict ({conflict_note(finding.conflict.minimal)}):")
-            width = max(len(item.path) for item in finding.conflict.items)
+            width = max(len(requirement.path) for requirement in finding.conflict.requirements)
             lines.extend(
-                f"{indent}  {item.path:<{width}}  {item.requires}"
-                for item in finding.conflict.items
+                f"{indent}  {requirement.path:<{width}}  {requirement.requires}"
+                for requirement in finding.conflict.requirements
             )
     lines += ["", solver_line(report, version), ""]
     return "\n".join(lines)
 
-
-# ---------------------------------------------------------------- HTML
 
 _CSS = """
 :root {
@@ -198,8 +194,8 @@ p { margin: 0 0 .5rem; max-width: 72ch; }
 .skipped .mark, .skipped .status { color: var(--skipped); }
 .evidence { margin: .5rem 0 .25rem; }
 .evidence p { font-size: .95rem; }
-.result th { color: var(--ink); }
-.fail .result tr:first-child td { color: var(--fail); font-weight: 700; }
+.scores th { color: var(--ink); }
+.fail .scores tr:first-child td { color: var(--fail); font-weight: 700; }
 table { border-collapse: collapse; margin: .35rem 0 .75rem; font-size: .92rem; }
 th, td { text-align: left; padding: .2rem 1.1rem .2rem 0; vertical-align: top; }
 th { font-weight: 600; color: var(--soft); }
@@ -312,14 +308,14 @@ def _finding_html(finding: Finding) -> str:
             '<div class="evidence">',
             "<p>For example, this outcome:</p>",
             f"<table>{outcome}</table>",
-            f'<table class="result">{scores}</table>',
+            f'<table class="scores">{scores}</table>',
             "</div>",
         ]
     if finding.conflict is not None:
         rows = "".join(
-            f'<tr><th scope="row">{escape(item.path)}</th>'
-            f"<td><code>{escape(item.requires)}</code></td></tr>"
-            for item in finding.conflict.items
+            f'<tr><th scope="row">{escape(requirement.path)}</th>'
+            f"<td><code>{escape(requirement.requires)}</code></td></tr>"
+            for requirement in finding.conflict.requirements
         )
         html += [
             '<div class="evidence">',

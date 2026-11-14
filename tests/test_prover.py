@@ -16,7 +16,7 @@ from ptisprover.loader import load_rubric, loads_toml
 from ptisprover.model import Rubric
 from ptisprover.prover import prove
 from ptisprover.report import Check, Finding, Report, Status
-from ptisprover.smt import Answer, Query, Reply, Requirement, Session
+from ptisprover.smt import Answer, Query, Reply, Requirement, Sat, Session, Unknown
 from tests.repo_paths import ORIGINAL
 
 HEADER = 'id = "t"\nexploit_threshold = 0.85\n'
@@ -229,7 +229,7 @@ def undecided(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], None]:
         ) -> Reply:
             if re.search(pattern, label):
                 self.queries.append(Query(label, Answer.UNKNOWN, 0))
-                return Reply(Answer.UNKNOWN)
+                return Unknown()
             return real_ask(self, label, constraints, tracked)
 
         monkeypatch.setattr(Session, "ask", ask)
@@ -395,7 +395,7 @@ def fake_answer(
         tracked: Sequence[Requirement] = (),
     ) -> Reply:
         if re.search(pattern, label):
-            return Reply(Answer.SAT, model=model, score=score)
+            return Sat(model=model, score=score)
         return real_ask(self, label, constraints, tracked)
 
     monkeypatch.setattr(Session, "ask", ask)
@@ -435,7 +435,7 @@ def test_an_irrational_strengthening_step_stops_without_proof(
         tracked: Sequence[Requirement] = (),
     ) -> Reply:
         if label.startswith("can breaking 'margin_floor' score above"):
-            return Reply(Answer.SAT, model={}, score=Fraction(1), irrational=True)
+            return Sat(model={}, score=Fraction(1), irrational=True)
         return real_ask(self, label, constraints, tracked)
 
     monkeypatch.setattr(Session, "ask", ask)

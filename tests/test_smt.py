@@ -12,7 +12,7 @@ from hypothesis import strategies as st
 from ptisprover import ir
 from ptisprover.evaluate import evaluate
 from ptisprover.model import Condition, Criterion, Rubric, Variable
-from ptisprover.smt import Answer, Encoding, Session
+from ptisprover.smt import Answer, Encoding, Sat, Session, Unsat
 from ptisprover.sorts import BOOL, INT, REAL, BitVecSort, Sort
 from tests.strategies import typed_exprs, values_of
 
@@ -75,7 +75,7 @@ def test_bit_vector_bounds_are_unsigned() -> None:
         "can m be 200",
         [*(r.formula for r in encoding.bounds), encoding.variables["m"] == 200],
     )
-    assert reply.answer is Answer.SAT
+    assert isinstance(reply, Sat)
 
 
 def test_session_logs_queries_and_counts_work() -> None:
@@ -84,8 +84,10 @@ def test_session_logs_queries_and_counts_work() -> None:
     x = encoding.variables["x"]
     first = session.ask("x is 2", [x == 2])
     second = session.ask("x is 9", [*(r.formula for r in encoding.bounds), x == 9])
-    assert (first.answer, second.answer) == (Answer.SAT, Answer.UNSAT)
+    assert isinstance(first, Sat)
     assert first.model == {"x": 2}
+    assert isinstance(second, Unsat)
+    assert [q.answer for q in session.queries] == [Answer.SAT, Answer.UNSAT]
     assert [q.label for q in session.queries] == ["x is 2", "x is 9"]
     assert session.work == sum(q.work for q in session.queries) > 0
     assert all(q.smt2 is not None and "(check-sat)" in q.smt2 for q in session.queries)
@@ -100,7 +102,7 @@ def test_session_rejects_a_non_positive_budget() -> None:
 def test_unsat_core_comes_back_as_requirement_paths_in_order() -> None:
     encoding = Encoding(rubric_over([Variable("x", INT, 5, 3)]))
     reply = Session(encoding, 10_000).ask("bounds", tracked=encoding.bounds)
-    assert reply.answer is Answer.UNSAT
+    assert isinstance(reply, Unsat)
     assert reply.core == ("variables.x.min", "variables.x.max")
 
 
@@ -108,6 +110,6 @@ def test_irrational_models_are_flagged() -> None:
     encoding = Encoding(rubric_over([Variable("r", REAL)]))
     r = encoding.variables["r"]
     reply = Session(encoding, 1_000_000).ask("r squared is 2", [r * r == 2, r > 0])
-    assert reply.answer is Answer.SAT
+    assert isinstance(reply, Sat)
     assert reply.irrational
     assert reply.model == {}

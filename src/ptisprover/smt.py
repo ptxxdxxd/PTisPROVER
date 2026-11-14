@@ -1,6 +1,6 @@
 """Z3 encoding of a rubric. The only module that imports z3.
 
-Each question is its own query on a fresh solver, budgeted in Z3 resource
+Each question is its own query, in its own Z3 Context, budgeted in Z3 resource
 units (``rlimit``) rather than seconds, so the same input gets the same answer
 on any machine with the same Z3 build.
 """
@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from fractions import Fraction
+from typing import TypeAlias
 
 import z3
 
@@ -42,14 +43,30 @@ class Query:
 
 
 @dataclass(frozen=True, slots=True)
-class Reply:
-    """A query's answer. On SAT: the outcome found and the score Z3 gives it."""
+class Sat:
+    """The outcome Z3 found and the score Z3 gives it.
 
-    answer: Answer
-    model: dict[str, ir.Value] | None = None
-    score: Fraction | None = None
-    core: tuple[str, ...] = ()
+    ``irrational``: some variable has an irrational value, which ``model`` leaves out.
+    """
+
+    model: dict[str, ir.Value]
+    score: Fraction
     irrational: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class Unsat:
+    """``core``: paths of the tracked requirements that already conflict, in the order given."""
+
+    core: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class Unknown:
+    pass
+
+
+Reply: TypeAlias = Sat | Unsat | Unknown
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,15 +302,14 @@ class Session:
         if answer is Answer.UNSAT:
             core = tuple(trackers[str(t)] for t in solver.unsat_core() if str(t) in trackers)
             order = [r.path for r in tracked]
-            return Reply(answer, core=tuple(sorted(core, key=order.index)))
+            return Unsat(tuple(sorted(core, key=order.index)))
         if answer is Answer.UNKNOWN:
-            return Reply(answer)
+            return Unknown()
         z3_model = solver.model()
         model, irrational = self._read_model(z3_model, ctx)
         score = z3_model.eval(self.encoding.score.translate(ctx), model_completion=True)
         assert z3.is_rational_value(score)
-        return Reply(
-            answer,
+        return Sat(
             model=model,
             score=Fraction(score.numerator_as_long(), score.denominator_as_long()),
             irrational=irrational,

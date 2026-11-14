@@ -35,12 +35,13 @@ from ptisprover.report import (
 )
 from ptisprover.smt import (
     DEFAULT_BUDGET,
-    Answer,
     Encoding,
     Query,
-    Reply,
     Requirement,
+    Sat,
     Session,
+    Unknown,
+    Unsat,
     solver_name,
 )
 
@@ -147,11 +148,9 @@ class _Prover:
         return [r.formula for r in self.encoding.domain]
 
     # None when the outcome has an irrational value, which the evaluator cannot score exactly.
-    def _replay(self, reply: Reply, question: str) -> Example | None:
+    def _replay(self, reply: Sat, question: str) -> Example | None:
         if reply.irrational:
             return None
-        assert reply.model is not None
-        assert reply.score is not None
         assessment = assess(self.rubric, reply.model)
         if not assessment.admissible:
             raise InternalError(
@@ -182,9 +181,9 @@ class _Prover:
         if any(holds(example) for example in self.pool):
             return True
         reply = self.session.ask(question, [*self._domain(), *constraints])
-        if reply.answer is Answer.UNSAT:
+        if isinstance(reply, Unsat):
             return False
-        if reply.answer is Answer.UNKNOWN:
+        if isinstance(reply, Unknown):
             return _Why.BUDGET
         example = self._replay(reply, question)
         if example is None:
@@ -212,19 +211,19 @@ class _Prover:
             candidate = pending[0]
             trial = [r for r in current if r.path != candidate.path]
             reply = self.session.ask(f"{question}, without {candidate.path}", tracked=trial)
-            if reply.answer is Answer.UNSAT:
+            if isinstance(reply, Unsat):
                 keep = set(reply.core)
                 current = [r for r in trial if r.path in keep] if keep else trial
             else:
                 settled.add(candidate.path)
-                minimal = minimal and reply.answer is Answer.SAT
+                minimal = minimal and isinstance(reply, Sat)
         return Conflict(tuple(ConflictRequirement(r.path, r.requires) for r in current), minimal)
 
     def _outcomes_exist(self) -> Status:
         question = "does any outcome satisfy the bounds and assumptions"
         domain = self.encoding.domain
         reply = self.session.ask(question, tracked=domain)
-        if reply.answer is Answer.UNSAT:
+        if isinstance(reply, Unsat):
             return self._record(
                 Finding(
                     Check.OUTCOMES,
@@ -235,7 +234,7 @@ class _Prover:
                     conflict=self._minimize(question, reply.core, domain),
                 )
             )
-        if reply.answer is Answer.UNKNOWN:
+        if isinstance(reply, Unknown):
             return self._record(
                 Finding(
                     Check.OUTCOMES,
@@ -287,7 +286,7 @@ class _Prover:
             *(encoding.penalty_stays_off(p.id) for p in self.rubric.penalties),
         ]
         reply = self.session.ask(question, tracked=requirements)
-        if reply.answer is Answer.UNSAT:
+        if isinstance(reply, Unsat):
             conflict = self._minimize(question, reply.core, requirements)
             self._record(
                 Finding(
@@ -299,7 +298,7 @@ class _Prover:
                 )
             )
             return
-        if reply.answer is Answer.UNKNOWN:
+        if isinstance(reply, Unknown):
             self._record(
                 Finding(
                     Check.PERFECT_SCORE,
@@ -348,7 +347,7 @@ class _Prover:
         base = [*self._domain(), broken]
         question = f"can '{ident}' be broken"
         reply = self.session.ask(question, base)
-        if reply.answer is Answer.UNSAT:
+        if isinstance(reply, Unsat):
             self._record(
                 Finding(
                     Check.EXPLOIT,
@@ -358,7 +357,7 @@ class _Prover:
                 )
             )
             return
-        if reply.answer is Answer.UNKNOWN:
+        if isinstance(reply, Unknown):
             self._record(
                 Finding(
                     Check.EXPLOIT,
@@ -377,8 +376,8 @@ class _Prover:
             question = f"can breaking '{ident}' score above {format_number(best.score)}"
             above = self.encoding.score > self.encoding.rational(best.score)
             reply = self.session.ask(question, [*base, above])
-            if reply.answer is not Answer.SAT:
-                stopped = None if reply.answer is Answer.UNSAT else _Why.BUDGET
+            if not isinstance(reply, Sat):
+                stopped = None if isinstance(reply, Unsat) else _Why.BUDGET
                 break
             better = self._exploit_example(reply, question, ident)
             if better is None:
@@ -415,7 +414,7 @@ class _Prover:
             )
         )
 
-    def _exploit_example(self, reply: Reply, question: str, ident: str) -> Example | None:
+    def _exploit_example(self, reply: Sat, question: str, ident: str) -> Example | None:
         example = self._replay(reply, question)
         if example is not None and ident not in example.broken:
             raise InternalError(f"{question}: the solver's outcome does not break '{ident}'")

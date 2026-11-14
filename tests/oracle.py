@@ -8,10 +8,10 @@ from __future__ import annotations
 import itertools
 from collections.abc import Iterator
 
-from rubric_prover import ir
-from rubric_prover.evaluate import assess, evaluate
-from rubric_prover.model import Rubric, Variable
-from rubric_prover.sorts import BOOL, INT, BitVecSort
+from ptisprover import ir
+from ptisprover.evaluate import assess, evaluate
+from ptisprover.model import Rubric, Variable
+from ptisprover.sorts import BOOL, INT, BitVecSort
 from tests.compare import Truth
 
 

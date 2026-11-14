@@ -11,10 +11,10 @@ import os
 
 from hypothesis import HealthCheck, given, settings
 
-from rubric_prover.evaluate import assess
-from rubric_prover.model import Rubric
-from rubric_prover.prover import prove
-from rubric_prover.report import Check
+from ptisprover.evaluate import assess
+from ptisprover.model import Rubric
+from ptisprover.prover import prove
+from ptisprover.report import Check
 from tests import oracle
 from tests.compare import assert_report_matches, by_check
 from tests.strategies import finite_rubrics

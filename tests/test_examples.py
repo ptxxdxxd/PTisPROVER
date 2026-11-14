@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from rubric_prover.loader import load_rubric
-from rubric_prover.prover import prove
-from rubric_prover.report import Check, Status
+from ptisprover.loader import load_rubric
+from ptisprover.prover import prove
+from ptisprover.report import Check, Status
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES = ROOT / "examples"

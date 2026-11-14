@@ -6,7 +6,7 @@ parser's precedence and associativity from the other side.
 
 from __future__ import annotations
 
-from rubric_prover.syntax import (
+from ptisprover.syntax import (
     COMPARISON_OPS,
     BoolLiteral,
     DecimalLiteral,

@@ -9,9 +9,9 @@ from typing import Any
 
 from hypothesis import strategies as st
 
-from rubric_prover import ir, syntax
-from rubric_prover.model import Condition, Criterion, Invariant, Penalty, Rubric, Variable
-from rubric_prover.sorts import BOOL, INT, REAL, BitVecSort, Sort
+from ptisprover import ir, syntax
+from ptisprover.model import Condition, Criterion, Invariant, Penalty, Rubric, Variable
+from ptisprover.sorts import BOOL, INT, REAL, BitVecSort, Sort
 
 BINARY_OPS: list[syntax.BinaryOp] = [
     "implies",

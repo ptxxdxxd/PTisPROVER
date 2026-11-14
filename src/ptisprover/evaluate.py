@@ -11,9 +11,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from fractions import Fraction
 
-from rubric_prover import ir
-from rubric_prover.model import Rubric
-from rubric_prover.sorts import BoolSort, IntSort, RealSort
+from ptisprover import ir
+from ptisprover.model import Rubric
+from ptisprover.sorts import BoolSort, IntSort, RealSort
 
 Assignment = Mapping[str, ir.Value]
 

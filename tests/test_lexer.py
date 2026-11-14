@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from rubric_prover.errors import RubricError
-from rubric_prover.lexer import MAX_EXPRESSION_LENGTH, Kind, tokenize
+from ptisprover.errors import RubricError
+from ptisprover.lexer import MAX_EXPRESSION_LENGTH, Kind, tokenize
 
 
 def kinds_and_texts(text: str) -> list[tuple[Kind, str]]:

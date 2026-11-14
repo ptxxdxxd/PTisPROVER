@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from rubric_prover.errors import Diagnostic, RubricError, position
+from ptisprover.errors import Diagnostic, RubricError, position
 
 
 @pytest.mark.parametrize(

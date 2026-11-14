@@ -7,7 +7,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from rubric_prover.exact import decimal_to_fraction, format_number
+from ptisprover.exact import decimal_to_fraction, format_number
 
 
 @pytest.mark.parametrize(

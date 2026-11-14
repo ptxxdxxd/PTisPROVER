@@ -6,10 +6,10 @@ import base64
 import hashlib
 from html import escape
 
-from rubric_prover import ir
-from rubric_prover.exact import format_number
-from rubric_prover.model import Rubric
-from rubric_prover.report import Check, Example, Finding, Report, Status
+from ptisprover import ir
+from ptisprover.exact import format_number
+from ptisprover.model import Rubric
+from ptisprover.report import Check, Example, Finding, Report, Status
 
 CHECK_NAMES: dict[Check, str] = {
     Check.OUTCOMES: "Possible outcomes",
@@ -49,7 +49,7 @@ def summary(report: Report) -> str:
 def solver_line(report: Report, version: str) -> str:
     stats = report.solver
     return (
-        f"Checked by rubric-prover {version} with {stats.solver}: {stats.queries} solver "
+        f"Checked by PTisPROVER {version} with {stats.solver}: {stats.queries} solver "
         f"queries used {stats.work:,} work units (budget {stats.budget_per_query:,} per query)."
     )
 
@@ -255,7 +255,7 @@ def render_html(report: Report, rubric: Rubric, version: str) -> str:
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         '<meta http-equiv="Content-Security-Policy" '
         f"content=\"default-src 'none'; style-src {style_hash()}\">",
-        f"<title>{escape(title)} (rubric-prover)</title>",
+        f"<title>{escape(title)} (PTisPROVER)</title>",
         f"<style>{_CSS}</style>",
         "</head>",
         "<body>",

@@ -90,6 +90,6 @@ jobs:
       - name: Run the installed command outside the source tree
         run: |
           cd /tmp
-          /tmp/installed/bin/rubric-prover --version
-          /tmp/installed/bin/rubric-prover schema > /dev/null
-          /tmp/installed/bin/rubric-prover check "$GITHUB_WORKSPACE/examples/coding_agent_fixed.toml"
+          /tmp/installed/bin/ptisprover --version
+          /tmp/installed/bin/ptisprover schema > /dev/null
+          /tmp/installed/bin/ptisprover check "$GITHUB_WORKSPACE/examples/coding_agent_fixed.toml"

@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from fractions import Fraction
 
-from rubric_prover import ir
-from rubric_prover.sorts import Sort
+from ptisprover import ir
+from ptisprover.sorts import Sort
 
 
 @dataclass(frozen=True, slots=True)

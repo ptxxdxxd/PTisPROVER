@@ -19,11 +19,11 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import NoReturn
 
-from rubric_prover import ir, syntax
-from rubric_prover.errors import RubricError
-from rubric_prover.exact import decimal_to_fraction
-from rubric_prover.parser import parse_expression
-from rubric_prover.sorts import BOOL, INT, REAL, BitVecSort, Sort, is_numeric
+from ptisprover import ir, syntax
+from ptisprover.errors import RubricError
+from ptisprover.exact import decimal_to_fraction
+from ptisprover.parser import parse_expression
+from ptisprover.sorts import BOOL, INT, REAL, BitVecSort, Sort, is_numeric
 
 
 @dataclass(frozen=True, slots=True)

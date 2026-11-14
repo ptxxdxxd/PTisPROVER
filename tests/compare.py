@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from fractions import Fraction
 
-from rubric_prover.report import Check, Finding, Report, Status
+from ptisprover.report import Check, Finding, Report, Status
 
 
 @dataclass(frozen=True)

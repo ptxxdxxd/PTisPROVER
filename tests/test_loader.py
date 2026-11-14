@@ -13,9 +13,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from rubric_prover.errors import RubricError
-from rubric_prover.loader import load_rubric, loads_json, loads_toml, rubric_from_dict
-from rubric_prover.sorts import BOOL, INT, REAL, BitVecSort
+from ptisprover.errors import RubricError
+from ptisprover.loader import load_rubric, loads_json, loads_toml, rubric_from_dict
+from ptisprover.sorts import BOOL, INT, REAL, BitVecSort
 from tests.conftest import ORIGINAL
 from tests.strategies import plausible_rubrics, rubric_like_dicts
 

@@ -8,11 +8,11 @@ from fractions import Fraction
 
 import pytest
 
-from rubric_prover.loader import load_rubric
-from rubric_prover.model import Rubric
-from rubric_prover.prover import prove
-from rubric_prover.render import render_html, render_text, show_value, style_hash, summary
-from rubric_prover.report import (
+from ptisprover.loader import load_rubric
+from ptisprover.model import Rubric
+from ptisprover.prover import prove
+from ptisprover.render import render_html, render_text, show_value, style_hash, summary
+from ptisprover.report import (
     Check,
     Conflict,
     ConflictItem,
@@ -71,7 +71,7 @@ def test_text_report_shows_conflicts_and_their_minimality() -> None:
         "               assume[0]        x > 1",
     ]
     assert text.splitlines()[-1] == (
-        "Checked by rubric-prover 9.9 with z3 test: 3 solver queries used 42 work units "
+        "Checked by PTisPROVER 9.9 with z3 test: 3 solver queries used 42 work units "
         "(budget 1,000 per query)."
     )
 

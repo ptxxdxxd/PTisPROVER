@@ -21,8 +21,8 @@ from typing import Any
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from rubric_prover.loader import rubric_from_dict
-from rubric_prover.prover import prove
+from ptisprover.loader import rubric_from_dict
+from ptisprover.prover import prove
 from tests.compare import Truth, assert_report_matches
 
 EXAMPLES = int(os.environ.get("DIFFERENTIAL_EXAMPLES", "300"))

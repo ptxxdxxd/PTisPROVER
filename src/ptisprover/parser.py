@@ -5,9 +5,9 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import NoReturn
 
-from rubric_prover import syntax
-from rubric_prover.errors import RubricError, position
-from rubric_prover.lexer import Kind, Token, tokenize
+from ptisprover import syntax
+from ptisprover.errors import RubricError, position
+from ptisprover.lexer import Kind, Token, tokenize
 
 MAX_DEPTH = 200
 

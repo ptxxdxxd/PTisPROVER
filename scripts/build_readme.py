@@ -16,10 +16,10 @@ from pathlib import Path
 
 import z3
 
-from rubric_prover import __version__, load_rubric
-from rubric_prover.prover import prove
-from rubric_prover.render import render_text
-from rubric_prover.report import Status
+from ptisprover import __version__, load_rubric
+from ptisprover.prover import prove
+from ptisprover.render import render_text
+from ptisprover.report import Status
 
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"
@@ -34,7 +34,7 @@ def example_run() -> str:
     return "\n".join(
         [
             "```console",
-            "$ rubric-prover check examples/coding_agent.toml",
+            "$ ptisprover check examples/coding_agent.toml",
             render_text(report, __version__).rstrip("\n"),
             "$ echo $?",
             str(EXIT_CODES[report.verdict]),

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "rubric-prover rubric",
+  "title": "PTisPROVER rubric",
   "description": "Structure of a rubric file (TOML or JSON). Checks the loader also performs and the schema cannot express: weights summing to exactly 1, min <= max, bit-vector bound ranges, unique ids, and that every condition parses and is a well-typed bool.",
   "type": "object",
   "additionalProperties": false,

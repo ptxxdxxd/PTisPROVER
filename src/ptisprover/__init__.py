@@ -2,14 +2,14 @@
 
 from importlib.metadata import version
 
-from rubric_prover.errors import Diagnostic, RubricError
-from rubric_prover.evaluate import Assessment, assess, evaluate, score
-from rubric_prover.loader import load_rubric, loads_json, loads_toml, rubric_from_dict
-from rubric_prover.model import Condition, Criterion, Invariant, Penalty, Rubric, Variable
-from rubric_prover.parser import parse_expression
-from rubric_prover.typecheck import check_condition
+from ptisprover.errors import Diagnostic, RubricError
+from ptisprover.evaluate import Assessment, assess, evaluate, score
+from ptisprover.loader import load_rubric, loads_json, loads_toml, rubric_from_dict
+from ptisprover.model import Condition, Criterion, Invariant, Penalty, Rubric, Variable
+from ptisprover.parser import parse_expression
+from ptisprover.typecheck import check_condition
 
-__version__ = version("rubric-prover")
+__version__ = version("ptisprover")
 
 __all__ = [
     "Assessment",

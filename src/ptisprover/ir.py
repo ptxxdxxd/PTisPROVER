@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import Literal
 
-from rubric_prover.sorts import BOOL, REAL, Sort
+from ptisprover.sorts import BOOL, REAL, Sort
 
 ArithmeticOp = Literal["+", "-", "*"]
 BitwiseOp = Literal["&", "|", "^"]

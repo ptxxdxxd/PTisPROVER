@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from rubric_prover import __version__
-from rubric_prover.cli import main
-from rubric_prover.errors import InternalError
+from ptisprover import __version__
+from ptisprover.cli import main
+from ptisprover.errors import InternalError
 from tests.conftest import ORIGINAL
 
 LOOPHOLE = str(ORIGINAL / "loophole_volume.toml")
@@ -32,7 +32,7 @@ def test_version_flag_reports_package_and_solver_versions(
         main(["--version"])
     assert exc.value.code == 0
     out = capsys.readouterr().out.strip()
-    assert out.startswith(f"rubric-prover {__version__} (z3 ")
+    assert out.startswith(f"ptisprover {__version__} (z3 ")
 
 
 @pytest.mark.parametrize(
@@ -168,30 +168,30 @@ def test_internal_error_exits_4(
     def broken(*args: object, **kwargs: object) -> None:
         raise InternalError("the evaluator and the solver disagree")
 
-    monkeypatch.setattr("rubric_prover.cli.run_checks", broken)
+    monkeypatch.setattr("ptisprover.cli.run_checks", broken)
     code, out, err = run(capsys, "check", LOOPHOLE)
     assert (code, out) == (4, "")
     assert err == (
-        "rubric-prover: internal error, please report it: the evaluator and the solver disagree\n"
+        "ptisprover: internal error, please report it: the evaluator and the solver disagree\n"
     )
 
 
 def test_schema_command_prints_the_schema(capsys: pytest.CaptureFixture[str]) -> None:
     code, out, _ = run(capsys, "schema")
     assert code == 0
-    assert json.loads(out)["title"] == "rubric-prover rubric"
+    assert json.loads(out)["title"] == "PTisPROVER rubric"
 
 
 def test_module_entry_point_in_process(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(sys, "argv", ["rubric-prover", "check", GOVCON, "--format", "json"])
+    monkeypatch.setattr(sys, "argv", ["ptisprover", "check", GOVCON, "--format", "json"])
     with pytest.raises(SystemExit) as exc:
-        runpy.run_module("rubric_prover", run_name="__main__")
+        runpy.run_module("ptisprover", run_name="__main__")
     assert exc.value.code == 0
 
 
 def test_module_runs_in_a_subprocess() -> None:
     result = subprocess.run(
-        [sys.executable, "-m", "rubric_prover", "check", LOOPHOLE, "--color", "never"],
+        [sys.executable, "-m", "ptisprover", "check", LOOPHOLE, "--color", "never"],
         capture_output=True,
         text=True,
         check=False,
@@ -234,7 +234,7 @@ def test_unusable_output_locations_are_found_before_solving(
     def must_not_run(*args: object, **kwargs: object) -> None:
         raise AssertionError("the solver ran before the output location was checked")
 
-    monkeypatch.setattr("rubric_prover.cli.run_checks", must_not_run)
+    monkeypatch.setattr("ptisprover.cli.run_checks", must_not_run)
     rubric = str(write_ok_rubric(tmp_path))
     a_file = tmp_path / "file"
     a_file.write_text("", encoding="utf-8")
@@ -255,7 +255,7 @@ def test_a_failed_write_is_an_input_error(
     def disk_full(path: Path, text: str) -> None:
         raise OSError(28, "No space left on device", str(path))
 
-    monkeypatch.setattr("rubric_prover.cli._write", disk_full)
+    monkeypatch.setattr("ptisprover.cli._write", disk_full)
     target = tmp_path / "report.txt"
     code, _, err = run(capsys, "check", str(write_ok_rubric(tmp_path)), "-o", str(target))
     assert (code, err) == (3, f"cannot write to {target}: No space left on device\n")
@@ -274,23 +274,23 @@ def test_an_unexpected_exception_exits_4_not_1(
     def broken(*args: object, **kwargs: object) -> None:
         raise RuntimeError("something nobody planned for")
 
-    monkeypatch.setattr("rubric_prover.cli.run_checks", broken)
+    monkeypatch.setattr("ptisprover.cli.run_checks", broken)
     code, out, err = run(capsys, "check", LOOPHOLE)
     assert (code, out) == (4, "")
     assert "RuntimeError: something nobody planned for" in err
-    assert err.endswith("rubric-prover: internal error (traceback above), please report it\n")
+    assert err.endswith("ptisprover: internal error (traceback above), please report it\n")
 
 
 def test_fail_on_warning_says_why_it_exits_1(capsys: pytest.CaptureFixture[str]) -> None:
     code, out, err = run(capsys, "check", REDUNDANT, "--fail-on-warning", "--color", "never")
     assert code == 1
     assert out.startswith("redundant-latency: PASS")
-    assert err == "rubric-prover: exit 1: --fail-on-warning is set and there are 1 warning(s)\n"
+    assert err == "ptisprover: exit 1: --fail-on-warning is set and there are 1 warning(s)\n"
 
 
 def test_html_to_a_console_that_is_not_utf8() -> None:
     result = subprocess.run(
-        [sys.executable, "-m", "rubric_prover", "check", GOVCON, "--format", "html"],
+        [sys.executable, "-m", "ptisprover", "check", GOVCON, "--format", "html"],
         capture_output=True,
         check=False,
         env={**os.environ, "PYTHONIOENCODING": "cp1252"},
@@ -300,7 +300,7 @@ def test_html_to_a_console_that_is_not_utf8() -> None:
 
 
 def test_installed_console_script() -> None:
-    script = Path(sys.executable).parent / "rubric-prover"
+    script = Path(sys.executable).parent / "ptisprover"
     result = subprocess.run([str(script), "--version"], capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
-    assert result.stdout.startswith(f"rubric-prover {__version__} ")
+    assert result.stdout.startswith(f"ptisprover {__version__} ")

@@ -14,8 +14,8 @@ import sys
 import time
 from pathlib import Path
 
-from rubric_prover import load_rubric
-from rubric_prover.prover import prove
+from ptisprover import load_rubric
+from ptisprover.prover import prove
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 

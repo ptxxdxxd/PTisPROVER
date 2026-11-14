@@ -11,10 +11,10 @@ from typing import Any
 import pytest
 from jsonschema import Draft202012Validator
 
-from rubric_prover import loader
-from rubric_prover.errors import RubricError
-from rubric_prover.lexer import KEYWORDS
-from rubric_prover.schema import rubric_schema_text
+from ptisprover import loader
+from ptisprover.errors import RubricError
+from ptisprover.lexer import KEYWORDS
+from ptisprover.schema import rubric_schema_text
 from tests.conftest import ORIGINAL
 
 SCHEMA: dict[str, Any] = json.loads(rubric_schema_text())

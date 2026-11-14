@@ -10,10 +10,10 @@ import argparse
 import sys
 from pathlib import Path
 
-from rubric_prover import __version__, load_rubric
-from rubric_prover.prover import prove
-from rubric_prover.render import CHECK_NAMES, render_html, render_text
-from rubric_prover.report import Report, Status
+from ptisprover import __version__, load_rubric
+from ptisprover.prover import prove
+from ptisprover.render import CHECK_NAMES, render_html, render_text
+from ptisprover.report import Report, Status
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES = ROOT / "examples"

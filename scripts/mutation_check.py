@@ -131,7 +131,7 @@ def main() -> int:
             return 2
         print("baseline  the unmodified copy passes")
         for mutation in MUTATIONS:
-            target = copy / "src" / "rubric_prover" / mutation.file
+            target = copy / "src" / "ptisprover" / mutation.file
             original = target.read_text(encoding="utf-8")
             if original.count(mutation.old) != 1:
                 print(f"STALE     {mutation.name}: the line to change is not in {mutation.file}")

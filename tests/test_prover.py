@@ -8,15 +8,15 @@ from fractions import Fraction
 import pytest
 import z3
 
-from rubric_prover import ir
-from rubric_prover import prover as prover_module
-from rubric_prover.errors import InternalError
-from rubric_prover.evaluate import Assessment, assess
-from rubric_prover.loader import load_rubric, loads_toml
-from rubric_prover.model import Rubric
-from rubric_prover.prover import prove, run_checks
-from rubric_prover.report import Check, Finding, Report, Status
-from rubric_prover.smt import Answer, Query, Requirement, Result, Session
+from ptisprover import ir
+from ptisprover import prover as prover_module
+from ptisprover.errors import InternalError
+from ptisprover.evaluate import Assessment, assess
+from ptisprover.loader import load_rubric, loads_toml
+from ptisprover.model import Rubric
+from ptisprover.prover import prove, run_checks
+from ptisprover.report import Check, Finding, Report, Status
+from ptisprover.smt import Answer, Query, Requirement, Result, Session
 from tests.conftest import ORIGINAL
 
 HEADER = 'id = "t"\nexploit_threshold = 0.85\n'
@@ -360,9 +360,7 @@ def test_unproven_maximum_at_or_above_threshold_still_fails(
 def corrupt_evaluator(
     monkeypatch: pytest.MonkeyPatch, change: Callable[[Assessment], Assessment]
 ) -> None:
-    monkeypatch.setattr(
-        "rubric_prover.prover.assess", lambda rubric, env: change(assess(rubric, env))
-    )
+    monkeypatch.setattr("ptisprover.prover.assess", lambda rubric, env: change(assess(rubric, env)))
 
 
 @pytest.mark.parametrize(

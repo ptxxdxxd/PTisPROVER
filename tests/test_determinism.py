@@ -8,12 +8,12 @@ from pathlib import Path
 
 import pytest
 
-from rubric_prover.loader import load_rubric
-from rubric_prover.prover import prove
+from ptisprover.loader import load_rubric
+from ptisprover.prover import prove
 from tests.conftest import ORIGINAL
 
 SCRIPT = (
-    "import sys; from rubric_prover import load_rubric; from rubric_prover.prover import prove; "
+    "import sys; from ptisprover import load_rubric; from ptisprover.prover import prove; "
     "sys.stdout.write(prove(load_rubric(sys.argv[1])).to_json())"
 )
 

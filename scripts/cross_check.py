@@ -1,4 +1,4 @@
-"""Re-solve rubric-prover's queries with cvc5 and compare the answers with Z3's.
+"""Re-solve PTisPROVER's queries with cvc5 and compare the answers with Z3's.
 
     python scripts/cross_check.py examples/*.toml       # run the checks, compare every query
     python scripts/cross_check.py out/                  # compare files written by --emit-smt2
@@ -15,8 +15,8 @@ from pathlib import Path
 
 import cvc5
 
-from rubric_prover import load_rubric
-from rubric_prover.prover import run_checks
+from ptisprover import load_rubric
+from ptisprover.prover import run_checks
 
 CVC5_TIME_LIMIT_MS = 10_000
 

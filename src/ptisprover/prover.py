@@ -18,11 +18,11 @@ from enum import Enum
 
 import z3
 
-from rubric_prover.errors import InternalError
-from rubric_prover.evaluate import assess
-from rubric_prover.exact import format_number
-from rubric_prover.model import Invariant, Rubric
-from rubric_prover.report import (
+from ptisprover.errors import InternalError
+from ptisprover.evaluate import assess
+from ptisprover.exact import format_number
+from ptisprover.model import Invariant, Rubric
+from ptisprover.report import (
     Check,
     Conflict,
     ConflictItem,
@@ -33,7 +33,7 @@ from rubric_prover.report import (
     Status,
     verdict_of,
 )
-from rubric_prover.smt import (
+from ptisprover.smt import (
     DEFAULT_BUDGET,
     Answer,
     Encoding,

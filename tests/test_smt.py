@@ -9,11 +9,11 @@ import z3
 from hypothesis import given
 from hypothesis import strategies as st
 
-from rubric_prover import ir
-from rubric_prover.evaluate import evaluate
-from rubric_prover.model import Condition, Criterion, Rubric, Variable
-from rubric_prover.smt import Answer, Encoding, Session
-from rubric_prover.sorts import BOOL, INT, REAL, BitVecSort, Sort
+from ptisprover import ir
+from ptisprover.evaluate import evaluate
+from ptisprover.model import Condition, Criterion, Rubric, Variable
+from ptisprover.smt import Answer, Encoding, Session
+from ptisprover.sorts import BOOL, INT, REAL, BitVecSort, Sort
 from tests.strategies import typed_exprs, values_of
 
 SORTS: list[Sort] = [BOOL, INT, REAL, BitVecSort(4)]

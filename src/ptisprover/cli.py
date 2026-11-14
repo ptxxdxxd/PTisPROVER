@@ -17,14 +17,15 @@ from typing import NoReturn
 
 import z3
 
-from rubric_prover import __version__
-from rubric_prover.errors import InternalError, RubricError
-from rubric_prover.loader import load_rubric
-from rubric_prover.prover import run_checks
-from rubric_prover.render import render_html, render_text
-from rubric_prover.report import Status
-from rubric_prover.schema import rubric_schema_text
-from rubric_prover.smt import DEFAULT_BUDGET, MAX_BUDGET
+from ptisprover import __version__
+from ptisprover.errors import InternalError, RubricError
+from ptisprover.loader import load_rubric
+from ptisprover.prover import run_checks
+from ptisprover.render import render_html, render_text
+from ptisprover.report import Status
+from ptisprover.schema import rubric_schema_text
+from ptisprover.signature import TAG
+from ptisprover.smt import DEFAULT_BUDGET, MAX_BUDGET
 
 EXIT_PASS = 0
 EXIT_FAIL = 1
@@ -53,14 +54,17 @@ def _positive_int(text: str) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = _Parser(
-        prog="rubric-prover",
+        prog="ptisprover",
         description="Check a grading rubric for reward hacks, dead criteria and contradictions.",
-        epilog="Exit codes: 0 pass, 1 fail, 2 inconclusive, 3 bad input, 4 internal error.",
+        epilog="Exit codes: 0 pass, 1 fail, 2 inconclusive, 3 bad input, 4 internal error.\n\n"
+        + TAG,
+        # Keeps the line breaks of the epilog; the description is a single line either way.
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--version",
         action="version",
-        version=f"rubric-prover {__version__} (z3 {z3.get_version_string()})",
+        version=f"ptisprover {__version__} (z3 {z3.get_version_string()})",
     )
     commands = parser.add_subparsers(dest="command", required=True, parser_class=_Parser)
 
@@ -107,7 +111,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         # Anything unexpected is a bug in this tool. It must not exit 1, which means
         # "the rubric fails".
         traceback.print_exc()
-        sys.stderr.write("rubric-prover: internal error (traceback above), please report it\n")
+        sys.stderr.write("ptisprover: internal error (traceback above), please report it\n")
         return EXIT_INTERNAL
 
 
@@ -134,7 +138,7 @@ def _check(args: argparse.Namespace) -> int:
     try:
         proof = run_checks(rubric, budget=args.budget, keep_smt2=args.emit_smt2 is not None)
     except InternalError as exc:
-        sys.stderr.write(f"rubric-prover: internal error, please report it: {exc}\n")
+        sys.stderr.write(f"ptisprover: internal error, please report it: {exc}\n")
         return EXIT_INTERNAL
     report = proof.report
 
@@ -167,7 +171,7 @@ def _check(args: argparse.Namespace) -> int:
     warnings = sum(1 for f in report.findings if f.status is Status.WARN)
     if args.fail_on_warning and warnings:
         sys.stderr.write(
-            f"rubric-prover: exit 1: --fail-on-warning is set and there are {warnings} warning(s)\n"
+            f"ptisprover: exit 1: --fail-on-warning is set and there are {warnings} warning(s)\n"
         )
         return EXIT_FAIL
     return EXIT_PASS

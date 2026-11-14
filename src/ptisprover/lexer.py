@@ -6,8 +6,8 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 
-from rubric_prover.errors import RubricError
-from rubric_prover.exact import MAX_DIGITS
+from ptisprover.errors import RubricError
+from ptisprover.exact import MAX_DIGITS
 
 MAX_EXPRESSION_LENGTH = 10_000
 

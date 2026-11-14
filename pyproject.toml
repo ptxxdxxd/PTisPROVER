@@ -3,11 +3,13 @@ requires = ["hatchling==1.33.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "rubric-prover"
+name = "ptisprover"
 version = "0.1.0.dev0"
 description = "Find reward hacks, dead criteria and contradictions in grading rubrics before you train on them."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "PTisDEV" }]
 keywords = ["smt", "z3", "reward-hacking", "rubric", "evaluation", "static-analysis"]
 classifiers = [
@@ -39,13 +41,13 @@ dev = [
 ]
 
 [project.scripts]
-rubric-prover = "rubric_prover.cli:main"
+ptisprover = "ptisprover.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/rubric_prover"]
+packages = ["src/ptisprover"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "tests", "examples", "scripts", "docs", "README.md", "CHANGELOG.md", "pyproject.toml"]
+include = ["src", "tests", "examples", "scripts", "docs", "README.md", "CHANGELOG.md", "LICENSE", "pyproject.toml"]
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
@@ -88,7 +90,7 @@ files = ["src", "tests", "scripts"]
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-# z3-solver ships no type information. All Z3 calls live in rubric_prover.smt,
+# z3-solver ships no type information. All Z3 calls live in ptisprover.smt,
 # which converts to and from typed values at its boundary.
 module = ["z3", "z3.*"]
 ignore_missing_imports = true
@@ -107,7 +109,7 @@ filterwarnings = ["error"]
 
 [tool.coverage.run]
 branch = true
-source = ["rubric_prover"]
+source = ["ptisprover"]
 
 [tool.coverage.report]
 fail_under = 95

@@ -6,10 +6,10 @@ from fractions import Fraction
 import pytest
 from hypothesis import given
 
-from rubric_prover import ir
-from rubric_prover.errors import RubricError
-from rubric_prover.sorts import BOOL, INT, REAL, BitVecSort, Sort
-from rubric_prover.typecheck import check_condition
+from ptisprover import ir
+from ptisprover.errors import RubricError
+from ptisprover.sorts import BOOL, INT, REAL, BitVecSort, Sort
+from ptisprover.typecheck import check_condition
 from tests.strategies import token_soup
 
 BV8 = BitVecSort(8)

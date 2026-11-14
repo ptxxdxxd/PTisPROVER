@@ -4,12 +4,12 @@ from fractions import Fraction
 
 import pytest
 
-from rubric_prover import ir
-from rubric_prover.evaluate import assess, evaluate, score, validate_assignment
-from rubric_prover.loader import load_rubric, loads_toml
-from rubric_prover.model import Rubric
-from rubric_prover.sorts import INT, REAL, BitVecSort, Sort
-from rubric_prover.typecheck import check_condition
+from ptisprover import ir
+from ptisprover.evaluate import assess, evaluate, score, validate_assignment
+from ptisprover.loader import load_rubric, loads_toml
+from ptisprover.model import Rubric
+from ptisprover.sorts import INT, REAL, BitVecSort, Sort
+from ptisprover.typecheck import check_condition
 from tests.conftest import ORIGINAL
 
 F = Fraction

@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from rubric_prover.cli import main
-from rubric_prover.loader import load_rubric, loads_toml
-from rubric_prover.prover import run_checks
+from ptisprover.cli import main
+from ptisprover.loader import load_rubric, loads_toml
+from ptisprover.prover import run_checks
 from tests.conftest import ORIGINAL
 
 ROOT = Path(__file__).resolve().parent.parent

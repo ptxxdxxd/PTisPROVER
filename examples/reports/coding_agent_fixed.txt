@@ -9,4 +9,4 @@ coding-agent-fixed: PASS (8 passed)
   pass       Overlapping criteria: no criterion pays whenever another does (6 ordered pairs checked)
   pass       Penalty range: 'edited_tests' can fire and can stay off
 
-Checked by rubric-prover 0.1.0.dev0 with z3 5.4.1: 8 solver queries used 3,135 work units (budget 5,000,000 per query).
+Checked by PTisPROVER 0.1.0.dev0 with z3 5.4.1: 8 solver queries used 3,135 work units (budget 5,000,000 per query).

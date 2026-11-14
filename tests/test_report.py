@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from fractions import Fraction
 
-from rubric_prover.loader import load_rubric
-from rubric_prover.prover import prove
-from rubric_prover.report import (
+from ptisprover.loader import load_rubric
+from ptisprover.prover import prove
+from ptisprover.report import (
     Check,
     Finding,
     Status,

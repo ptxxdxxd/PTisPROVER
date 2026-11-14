@@ -17,13 +17,13 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any, TypeVar
 
-from rubric_prover.errors import Diagnostic, RubricError
-from rubric_prover.exact import TOO_LARGE, format_number, within_limits
-from rubric_prover.lexer import KEYWORDS
-from rubric_prover.model import Condition, Criterion, Invariant, Penalty, Rubric, Variable
-from rubric_prover.parser import parse_expression
-from rubric_prover.sorts import BoolSort, IntSort, RealSort, Sort, parse_sort
-from rubric_prover.typecheck import check_condition
+from ptisprover.errors import Diagnostic, RubricError
+from ptisprover.exact import TOO_LARGE, format_number, within_limits
+from ptisprover.lexer import KEYWORDS
+from ptisprover.model import Condition, Criterion, Invariant, Penalty, Rubric, Variable
+from ptisprover.parser import parse_expression
+from ptisprover.sorts import BoolSort, IntSort, RealSort, Sort, parse_sort
+from ptisprover.typecheck import check_condition
 
 TOP_LEVEL_KEYS = frozenset(
     {

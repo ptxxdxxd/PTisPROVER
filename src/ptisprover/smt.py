@@ -14,10 +14,10 @@ from fractions import Fraction
 
 import z3
 
-from rubric_prover import ir
-from rubric_prover.exact import format_number
-from rubric_prover.model import Rubric, Variable
-from rubric_prover.sorts import BOOL, INT, REAL, BitVecSort
+from ptisprover import ir
+from ptisprover.exact import format_number
+from ptisprover.model import Rubric, Variable
+from ptisprover.sorts import BOOL, INT, REAL, BitVecSort
 
 DEFAULT_BUDGET = 5_000_000
 # Z3 reads rlimit as an unsigned 32-bit number: 2**32 would mean "no limit" and 2**32 + 1

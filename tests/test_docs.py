@@ -6,8 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from rubric_prover import cli, exact, lexer, parser, prover, smt
-from rubric_prover.smt import DEFAULT_BUDGET
+from ptisprover import cli, exact, lexer, parser, prover, smt
+from ptisprover.smt import DEFAULT_BUDGET
 
 ROOT = Path(__file__).resolve().parent.parent
 README = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -46,7 +46,7 @@ def test_readme_error_example_is_what_the_loader_prints(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     result = subprocess.run(
-        [sys.executable, "-m", "rubric_prover", "check", "rubric.toml"],
+        [sys.executable, "-m", "ptisprover", "check", "rubric.toml"],
         capture_output=True,
         text=True,
         check=False,
@@ -57,7 +57,7 @@ def test_readme_error_example_is_what_the_loader_prints(tmp_path: Path) -> None:
 
 
 def test_readme_python_example_runs() -> None:
-    start = README.index("from rubric_prover import load_rubric")
+    start = README.index("from ptisprover import load_rubric")
     snippet = README[start : README.index("```", start)]
     result = subprocess.run(
         [sys.executable, "-c", snippet], capture_output=True, text=True, check=False, cwd=ROOT

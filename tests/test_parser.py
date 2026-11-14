@@ -7,9 +7,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from rubric_prover import syntax
-from rubric_prover.errors import RubricError
-from rubric_prover.parser import MAX_DEPTH, parse_expression
+from ptisprover import syntax
+from ptisprover.errors import RubricError
+from ptisprover.parser import MAX_DEPTH, parse_expression
 from tests.printer import format_expr
 from tests.strategies import syntax_trees, token_soup
 

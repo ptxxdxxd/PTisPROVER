@@ -1,11 +1,11 @@
-# rubric-prover
+# PTisPROVER
 
 Find reward hacks, dead criteria and contradictions in a grading rubric before you train or
 evaluate a model with it.
 
 A rubric that scores model outputs is a specification, and specifications have bugs. If the
 cheapest way to a high score is not the behaviour you wanted, a model under optimisation
-pressure will find it. `rubric-prover` reads the rubric, asks an SMT solver the questions a
+pressure will find it. PTisPROVER reads the rubric, asks an SMT solver the questions a
 careful reviewer would ask, and answers each one with a proof, a concrete counterexample, or
 an honest "could not decide".
 
@@ -48,7 +48,7 @@ holds = "not tests_modified"
 
 <!-- BEGIN GENERATED: example-run -->
 ```console
-$ rubric-prover check examples/coding_agent.toml
+$ ptisprover check examples/coding_agent.toml
 coding-agent: FAIL (1 failed, 6 passed)
 
   pass       Possible outcomes: at least one outcome satisfies the bounds and assumptions
@@ -61,7 +61,7 @@ coding-agent: FAIL (1 failed, 6 passed)
   pass       Criterion range: 'focused_diff' can pay and can fail
   pass       Overlapping criteria: no criterion pays whenever another does (6 ordered pairs checked)
 
-Checked by rubric-prover 0.1.0.dev0 with z3 5.4.1: 9 solver queries used 5,040 work units (budget 5,000,000 per query).
+Checked by PTisPROVER 0.1.0.dev0 with z3 5.4.1: 9 solver queries used 5,040 work units (budget 5,000,000 per query).
 $ echo $?
 1
 ```
@@ -105,10 +105,10 @@ Python 3.11 or newer.
 
 ```bash
 pip install -e .
-rubric-prover check examples/coding_agent.toml
-rubric-prover check examples/coding_agent.toml --format html -o report.html
-rubric-prover check examples/coding_agent.toml --format json
-rubric-prover schema > rubric.schema.json
+ptisprover check examples/coding_agent.toml
+ptisprover check examples/coding_agent.toml --format html -o report.html
+ptisprover check examples/coding_agent.toml --format json
+ptisprover schema > rubric.schema.json
 ```
 
 Exit codes make it usable as a CI gate:
@@ -124,8 +124,8 @@ Exit codes make it usable as a CI gate:
 From Python:
 
 ```python
-from rubric_prover import load_rubric
-from rubric_prover.prover import prove
+from ptisprover import load_rubric
+from ptisprover.prover import prove
 
 report = prove(load_rubric("examples/coding_agent.toml"))
 print(report.verdict)  # fail
@@ -133,7 +133,7 @@ print(report.verdict)  # fail
 
 ## Writing a rubric
 
-A rubric is a TOML or JSON file. `rubric-prover schema` prints its JSON Schema.
+A rubric is a TOML or JSON file. `ptisprover schema` prints its JSON Schema.
 
 - `[variables]`: what can be observed about an output. Types are `bool`, `int`, `real` and
   `bv1` to `bv64` (unsigned bit-vectors, for flag sets). `int`, `real` and bit-vector
@@ -233,17 +233,18 @@ This project began as an audit of an earlier prototype of the same idea. The def
 there are kept as regression tests in `tests/test_regressions.py`, and the prototype's four
 sample rubrics are in `tests/rubrics/original/`.
 
-## Licence
+## License
 
-No licence has been chosen yet. Until one is added, all rights are reserved.
+MIT. See [LICENSE](LICENSE).
 
----
-
+<!-- signature:start -->
+```text
+   .-------.
+  /         \
+ |  ()   ()  |
+ |     ^     |
+  \  |||||  /
+   '-.___.-'
+    PTisDEV
 ```
-   _____
-  /     \
- | () () |
-  \  ^  /
-   |||||    PTisDEV
-   '''''
-```
+<!-- signature:end -->

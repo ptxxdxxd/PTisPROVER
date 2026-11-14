@@ -9,8 +9,8 @@ from enum import StrEnum
 from fractions import Fraction
 from typing import Any
 
-from rubric_prover import ir
-from rubric_prover.exact import format_number
+from ptisprover import ir
+from ptisprover.exact import format_number
 
 
 class Status(StrEnum):

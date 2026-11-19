@@ -1,5 +1,7 @@
 # PTisPROVER
 
+[![CI](https://github.com/ptxxdxxd/PTisPROVER/actions/workflows/ci.yml/badge.svg)](https://github.com/ptxxdxxd/PTisPROVER/actions/workflows/ci.yml)
+
 PTisPROVER reads a rubric used to grade model outputs and asks the Z3 SMT solver whether it
 can be gamed, whether each criterion can actually pay and fail, and whether a perfect score is
 reachable at all.
@@ -73,10 +75,11 @@ invariant can earn nothing.
 
 ## Install
 
-Python 3.11 or newer. The package is not on PyPI; install it from a checkout of this
-repository:
+Python 3.11 or newer. The package is not on PyPI; install it from a checkout:
 
 ```bash
+git clone https://github.com/ptxxdxxd/PTisPROVER.git
+cd PTisPROVER
 python -m pip install .
 ```
 

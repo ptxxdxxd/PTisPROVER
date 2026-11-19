@@ -29,6 +29,9 @@ classifiers = [
 # reproducible for a fixed Z3 build. Upgrading Z3 is a deliberate change.
 dependencies = ["z3-solver==5.4.1.0"]
 
+[project.urls]
+Repository = "https://github.com/ptxxdxxd/PTisPROVER"
+
 [project.scripts]
 ptisprover = "ptisprover.cli:main"
 

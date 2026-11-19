@@ -124,8 +124,8 @@ def make_copy(directory: Path) -> Path:
 
 def main() -> int:
     survivors = 0
-    with tempfile.TemporaryDirectory() as tmp:
-        copy = make_copy(Path(tmp))
+    with tempfile.TemporaryDirectory() as workdir:
+        copy = make_copy(Path(workdir))
         if run_tests(copy) != 0:
             print("the unmodified copy does not pass its tests; nothing was checked")
             return 2

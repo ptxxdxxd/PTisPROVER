@@ -36,7 +36,7 @@ def contradictory() -> Rubric:
 
 
 def test_govcon_everything_pays(govcon: Rubric) -> None:
-    result = assess(
+    assessment = assess(
         govcon,
         {
             "net_margin": F("0.20"),
@@ -47,17 +47,17 @@ def test_govcon_everything_pays(govcon: Rubric) -> None:
         },
     )
     # 0.35 + 0.35 + 0.30 = 1.00
-    assert result.score == 1
-    assert result.paying == ("target_margin", "fast_delivery", "full_compliance")
-    assert result.firing == ()
-    assert result.broken == ()
-    assert result.admissible
+    assert assessment.score == 1
+    assert assessment.paying == ("target_margin", "fast_delivery", "full_compliance")
+    assert assessment.firing == ()
+    assert assessment.broken == ()
+    assert assessment.admissible
 
 
 def test_govcon_partial_credit(govcon: Rubric) -> None:
     # margin 0.10 < 0.18 fails; 20 <= 30 pays 0.35; 0xFF & 0x07 == 0x07 pays 0.30
     # 0.35 + 0.30 = 0.65. Margin 0.10 also breaks the 0.12 floor.
-    result = assess(
+    assessment = assess(
         govcon,
         {
             "net_margin": F("0.10"),
@@ -67,13 +67,13 @@ def test_govcon_partial_credit(govcon: Rubric) -> None:
             "debarred_subcontractor": False,
         },
     )
-    assert result.score == F("0.65")
-    assert result.broken == ("margin_floor",)
+    assert assessment.score == F("0.65")
+    assert assessment.broken == ("margin_floor",)
 
 
 def test_govcon_zeroing_penalty_overrides_full_credit(govcon: Rubric) -> None:
     # All three criteria pay (1.00), but a debarred subcontractor zeroes the score.
-    result = assess(
+    assessment = assess(
         govcon,
         {
             "net_margin": F("0.20"),
@@ -83,9 +83,9 @@ def test_govcon_zeroing_penalty_overrides_full_credit(govcon: Rubric) -> None:
             "debarred_subcontractor": True,
         },
     )
-    assert result.paying == ("target_margin", "fast_delivery", "full_compliance")
-    assert result.firing == ("debarred_vendor",)
-    assert result.score == 0
+    assert assessment.paying == ("target_margin", "fast_delivery", "full_compliance")
+    assert assessment.firing == ("debarred_vendor",)
+    assert assessment.score == 0
 
 
 def test_govcon_assumption_and_bounds(govcon: Rubric) -> None:
@@ -96,16 +96,16 @@ def test_govcon_assumption_and_bounds(govcon: Rubric) -> None:
         "uncapped_liability": 0,
         "debarred_subcontractor": False,
     }
-    result = assess(govcon, outcome)
-    assert not result.in_bounds
-    assert not result.assumptions_hold
-    assert not result.admissible
+    assessment = assess(govcon, outcome)
+    assert not assessment.in_bounds
+    assert not assessment.assumptions_hold
+    assert not assessment.admissible
 
 
 def test_loophole_exploit_from_the_original_fixture(loophole: Rubric) -> None:
     # volume 750000 >= 500000 pays 0.55; latency 100 <= 250 pays 0.45; sum 1.00.
     # uncapped liability fires the 0.10 deduction: 1.00 - 0.10 = 0.90.
-    result = assess(
+    assessment = assess(
         loophole,
         {
             "deal_volume_usd": 750000,
@@ -114,10 +114,10 @@ def test_loophole_exploit_from_the_original_fixture(loophole: Rubric) -> None:
             "uncapped_liability": 1,
         },
     )
-    assert result.score == F("0.90")
-    assert result.firing == ("weak_risk_deduction",)
-    assert result.broken == ("positive_margin", "no_uncapped_liability")
-    assert result.admissible
+    assert assessment.score == F("0.90")
+    assert assessment.firing == ("weak_risk_deduction",)
+    assert assessment.broken == ("positive_margin", "no_uncapped_liability")
+    assert assessment.admissible
 
 
 def test_redundant_latency_tiers(redundant: Rubric) -> None:
@@ -132,9 +132,9 @@ def test_redundant_latency_tiers(redundant: Rubric) -> None:
 def test_contradictory_pricing_boundary(contradictory: Rubric) -> None:
     # margin 0.25 >= 0.25 pays 0.50; discount 0.25 < 0.30 does not.
     # Assumption: 0.25 + 0.25 = 0.50 <= 0.50 holds.
-    result = assess(contradictory, {"margin": F("0.25"), "discount": F("0.25")})
-    assert result.score == F("0.50")
-    assert result.admissible
+    assessment = assess(contradictory, {"margin": F("0.25"), "discount": F("0.25")})
+    assert assessment.score == F("0.50")
+    assert assessment.admissible
 
 
 def test_score_floors_at_zero() -> None:

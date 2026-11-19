@@ -168,8 +168,8 @@ class _Builder:
 
         assumptions = tuple(
             c
-            for index, item in enumerate(self._list(document.get("assume", []), "assume"))
-            if (c := self._condition(item, f"assume[{index}]", sorts)) is not None
+            for index, entry in enumerate(self._list(document.get("assume", []), "assume"))
+            if (c := self._condition(entry, f"assume[{index}]", sorts)) is not None
         )
         criteria = self._entries(document.get("criteria"), "criteria", sorts, self._criterion)
         penalties = self._entries(document.get("penalties", []), "penalties", sorts, self._penalty)
@@ -289,60 +289,60 @@ class _Builder:
         sorts: Mapping[str, Sort] | None,
         build: Callable[[Mapping[str, Any], str, Mapping[str, Sort] | None], _T | None],
     ) -> list[_T | None]:
-        results: list[_T | None] = []
-        for index, item in enumerate(self._list(raw, section)):
-            path = self._entry_path(section, index, item)
-            if not isinstance(item, Mapping):
-                self._error(path, f"expected a table, found {_kind(item)}")
-                results.append(None)
+        built: list[_T | None] = []
+        for index, entry in enumerate(self._list(raw, section)):
+            path = self._entry_path(section, index, entry)
+            if not isinstance(entry, Mapping):
+                self._error(path, f"expected a table, found {_kind(entry)}")
+                built.append(None)
                 continue
-            results.append(build(item, path, sorts))
-        return results
+            built.append(build(entry, path, sorts))
+        return built
 
     @staticmethod
-    def _entry_path(section: str, index: int, item: Any) -> str:
+    def _entry_path(section: str, index: int, entry: Any) -> str:
         if (
-            isinstance(item, Mapping)
-            and isinstance(item.get("id"), str)
-            and _ID.fullmatch(item["id"])
+            isinstance(entry, Mapping)
+            and isinstance(entry.get("id"), str)
+            and _ID.fullmatch(entry["id"])
         ):
-            return f'{section}["{item["id"]}"]'
+            return f'{section}["{entry["id"]}"]'
         return f"{section}[{index}]"
 
     def _criterion(
-        self, item: Mapping[str, Any], path: str, sorts: Mapping[str, Sort] | None
+        self, entry: Mapping[str, Any], path: str, sorts: Mapping[str, Sort] | None
     ) -> Criterion | None:
-        self._unknown_keys(item, CRITERION_KEYS, path)
-        ident = self._required_id(item, path)
+        self._unknown_keys(entry, CRITERION_KEYS, path)
+        ident = self._required_id(entry, path)
         weight = None
-        if "weight" not in item:
+        if "weight" not in entry:
             self._error(f"{path}.weight", "required")
         else:
-            weight = self._fraction_in_unit_interval(item["weight"], f"{path}.weight")
-        when = self._required_condition(item, "when", path, sorts)
-        description = self._text(item.get("description", ""), f"{path}.description")
+            weight = self._fraction_in_unit_interval(entry["weight"], f"{path}.weight")
+        when = self._required_condition(entry, "when", path, sorts)
+        description = self._text(entry.get("description", ""), f"{path}.description")
         if ident is None or weight is None or when is None:
             return None
         return Criterion(ident, weight, when, description)
 
     def _penalty(
-        self, item: Mapping[str, Any], path: str, sorts: Mapping[str, Sort] | None
+        self, entry: Mapping[str, Any], path: str, sorts: Mapping[str, Sort] | None
     ) -> Penalty | None:
-        self._unknown_keys(item, PENALTY_KEYS, path)
-        ident = self._required_id(item, path)
-        when = self._required_condition(item, "when", path, sorts)
-        description = self._text(item.get("description", ""), f"{path}.description")
-        has_deduct, has_zero = "deduct" in item, "zero" in item
+        self._unknown_keys(entry, PENALTY_KEYS, path)
+        ident = self._required_id(entry, path)
+        when = self._required_condition(entry, "when", path, sorts)
+        description = self._text(entry.get("description", ""), f"{path}.description")
+        has_deduct, has_zero = "deduct" in entry, "zero" in entry
         deduction: Fraction | None = None
         valid = True
         if has_deduct and has_zero:
             self._error(path, "set either 'deduct' or 'zero', not both")
             valid = False
         elif has_deduct:
-            deduction = self._fraction_in_unit_interval(item["deduct"], f"{path}.deduct")
+            deduction = self._fraction_in_unit_interval(entry["deduct"], f"{path}.deduct")
             valid = deduction is not None
         elif has_zero:
-            if item["zero"] is not True:
+            if entry["zero"] is not True:
                 self._error(f"{path}.zero", "must be true (leave it out for a deduction)")
                 valid = False
         else:
@@ -353,12 +353,12 @@ class _Builder:
         return Penalty(ident, when, deduction, description)
 
     def _invariant(
-        self, item: Mapping[str, Any], path: str, sorts: Mapping[str, Sort] | None
+        self, entry: Mapping[str, Any], path: str, sorts: Mapping[str, Sort] | None
     ) -> Invariant | None:
-        self._unknown_keys(item, INVARIANT_KEYS, path)
-        ident = self._required_id(item, path)
-        holds = self._required_condition(item, "holds", path, sorts)
-        description = self._text(item.get("description", ""), f"{path}.description")
+        self._unknown_keys(entry, INVARIANT_KEYS, path)
+        ident = self._required_id(entry, path)
+        holds = self._required_condition(entry, "holds", path, sorts)
+        description = self._text(entry.get("description", ""), f"{path}.description")
         if ident is None or holds is None:
             return None
         return Invariant(ident, holds, description)
@@ -376,13 +376,13 @@ class _Builder:
     def _check_unique_ids(self, document: Mapping[str, Any]) -> None:
         seen: dict[str, str] = {}
         for section in ("criteria", "penalties", "invariants"):
-            items = document.get(section)
-            if not isinstance(items, list | tuple):
+            entries = document.get(section)
+            if not isinstance(entries, list | tuple):
                 continue
-            for index, item in enumerate(items):
-                if not isinstance(item, Mapping):
+            for index, entry in enumerate(entries):
+                if not isinstance(entry, Mapping):
                     continue
-                ident = item.get("id")
+                ident = entry.get("id")
                 if not isinstance(ident, str):
                     continue
                 path = f"{section}[{index}].id"
@@ -391,8 +391,8 @@ class _Builder:
                 else:
                     seen[ident] = path
 
-    def _unknown_keys(self, item: Mapping[str, Any], allowed: frozenset[str], path: str) -> None:
-        for key in item:
+    def _unknown_keys(self, entry: Mapping[str, Any], allowed: frozenset[str], path: str) -> None:
+        for key in entry:
             if key not in allowed:
                 where = f"{path}.{key}" if path else str(key)
                 self._error(where, f"unknown key; expected one of: {', '.join(sorted(allowed))}")
@@ -405,11 +405,11 @@ class _Builder:
             return []
         return list(raw)
 
-    def _required_id(self, item: Mapping[str, Any], path: str) -> str | None:
-        if "id" not in item:
+    def _required_id(self, entry: Mapping[str, Any], path: str) -> str | None:
+        if "id" not in entry:
             self._error(f"{path}.id", "required")
             return None
-        return self._id(item["id"], f"{path}.id")
+        return self._id(entry["id"], f"{path}.id")
 
     def _id(self, value: Any, path: str) -> str | None:
         if not isinstance(value, str) or not _ID.fullmatch(value):
@@ -428,12 +428,12 @@ class _Builder:
         return value
 
     def _required_condition(
-        self, item: Mapping[str, Any], key: str, path: str, sorts: Mapping[str, Sort] | None
+        self, entry: Mapping[str, Any], key: str, path: str, sorts: Mapping[str, Sort] | None
     ) -> Condition | None:
-        if key not in item:
+        if key not in entry:
             self._error(f"{path}.{key}", "required")
             return None
-        return self._condition(item[key], f"{path}.{key}", sorts)
+        return self._condition(entry[key], f"{path}.{key}", sorts)
 
     def _condition(
         self, value: Any, path: str, sorts: Mapping[str, Sort] | None

@@ -25,8 +25,8 @@ def read(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8")
     if path.suffix == ".toml":
         return tomllib.loads(text, parse_float=Decimal)
-    data: dict[str, Any] = json.loads(text, parse_float=Decimal)
-    return data
+    document: dict[str, Any] = json.loads(text, parse_float=Decimal)
+    return document
 
 
 def test_schema_is_a_valid_draft_2020_12_schema() -> None:
@@ -60,15 +60,15 @@ def _base() -> dict[str, Any]:
     return read(ORIGINAL / "redundant_latency.toml")
 
 
-def _set(data: dict[str, Any], path: list[Any], value: Any) -> dict[str, Any]:
-    target: Any = data
+def _set(document: dict[str, Any], path: list[Any], value: Any) -> dict[str, Any]:
+    target: Any = document
     for key in path[:-1]:
         target = target[key]
     if value is ...:
         del target[path[-1]]
     else:
         target[path[-1]] = value
-    return data
+    return document
 
 
 @pytest.mark.parametrize(
@@ -95,7 +95,7 @@ def _set(data: dict[str, Any], path: list[Any], value: Any) -> dict[str, Any]:
     ],
 )
 def test_structural_errors_are_rejected_by_both(path: list[Any], value: Any) -> None:
-    data = _set(_base(), path, value)
-    assert not VALIDATOR.is_valid(data)
+    document = _set(_base(), path, value)
+    assert not VALIDATOR.is_valid(document)
     with pytest.raises(RubricError):
-        loader.rubric_from_dict(data)
+        loader.rubric_from_dict(document)

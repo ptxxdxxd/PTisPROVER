@@ -64,21 +64,21 @@ class Var:
 
 @st.composite
 def variables(draw: st.DrawFn) -> list[Var]:
-    result = []
+    declared = []
     for index in range(draw(st.integers(1, 3))):
         name = f"v{index}"
         kind = draw(st.sampled_from(["bool", "int", "bv2", "bv3"]))
         if kind == "bool":
-            result.append(Var(name, kind))
+            declared.append(Var(name, kind))
         elif kind == "int":
             low = draw(st.integers(-3, 1))
-            result.append(Var(name, kind, low, low + draw(st.integers(0, 4))))
+            declared.append(Var(name, kind, low, low + draw(st.integers(0, 4))))
         else:
             top = 2 ** int(kind[2:]) - 1
             floor = draw(st.one_of(st.none(), st.integers(0, top)))
             ceiling = draw(st.one_of(st.none(), st.integers(floor or 0, top)))
-            result.append(Var(name, kind, floor, ceiling))
-    return result
+            declared.append(Var(name, kind, floor, ceiling))
+    return declared
 
 
 @st.composite

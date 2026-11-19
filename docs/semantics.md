@@ -54,6 +54,7 @@ Typing rules:
 - An expression can be at most 10,000 characters long, with at most 200 levels of nested or
   chained operators (a chain such as `a or b or c` counts one level per operator) and number
   literals of at most 100 characters.
+- A rubric file may nest tables and arrays at most 32 levels deep; a valid rubric needs three.
 
 ## Checks
 

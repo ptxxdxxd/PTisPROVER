@@ -10,7 +10,7 @@ import json
 import os
 import re
 import tomllib
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import date, datetime, time
 from decimal import Decimal
 from fractions import Fraction
@@ -48,6 +48,12 @@ NAME_PATTERN = r"[A-Za-z_][A-Za-z0-9_]{0,63}"
 _ID = re.compile(ID_PATTERN)
 _NAME = re.compile(NAME_PATTERN)
 
+# A valid rubric is three levels deep (document, section, entry). The parsers' own recursion
+# limits are not a usable bound: from Python 3.14 the json module's limit depends on the
+# stack size, so the same deep file failed on one machine and parsed on another.
+MAX_NESTING = 32
+_TOO_DEEP = f"values are nested more than {MAX_NESTING} levels deep"
+
 _T = TypeVar("_T")
 
 
@@ -74,7 +80,9 @@ def loads_toml(text: str) -> Rubric:
     except ValueError:  # Python refuses to read integers of several thousand digits
         raise RubricError.single(f"invalid TOML: {TOO_LARGE}") from None
     except RecursionError:
-        raise RubricError.single("invalid TOML: values are nested too deeply") from None
+        raise RubricError.single(f"invalid TOML: {_TOO_DEEP}") from None
+    if _nesting(document) > MAX_NESTING:
+        raise RubricError.single(f"invalid TOML: {_TOO_DEEP}")
     return rubric_from_dict(document)
 
 
@@ -95,7 +103,9 @@ def loads_json(text: str) -> Rubric:
     except ValueError:  # Python refuses to read integers of several thousand digits
         raise RubricError.single(f"invalid JSON: {TOO_LARGE}") from None
     except RecursionError:
-        raise RubricError.single("invalid JSON: values are nested too deeply") from None
+        raise RubricError.single(f"invalid JSON: {_TOO_DEEP}") from None
+    if _nesting(document) > MAX_NESTING:
+        raise RubricError.single(f"invalid JSON: {_TOO_DEEP}")
     if not isinstance(document, dict):
         raise RubricError.single(f"the top level must be an object, found {_kind(document)}")
     return rubric_from_dict(document)
@@ -108,6 +118,24 @@ def rubric_from_dict(document: Mapping[str, Any]) -> Rubric:
 
 class _JsonContentError(ValueError):
     pass
+
+
+# Iterative, because the document can be deeper than Python's recursion limit. Stops counting
+# once past MAX_NESTING.
+def _nesting(document: object) -> int:
+    deepest = 0
+    pending: list[tuple[object, int]] = [(document, 1)]
+    while pending and deepest <= MAX_NESTING:
+        value, depth = pending.pop()
+        if isinstance(value, dict):
+            children: Iterable[object] = value.values()
+        elif isinstance(value, list):
+            children = value
+        else:
+            continue
+        deepest = max(deepest, depth)
+        pending.extend((child, depth + 1) for child in children)
+    return deepest
 
 
 def _reject_constant(name: str) -> Any:

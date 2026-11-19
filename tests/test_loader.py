@@ -14,7 +14,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from ptisprover.errors import RubricError
-from ptisprover.loader import load_rubric, loads_json, loads_toml, rubric_from_dict
+from ptisprover.loader import MAX_NESTING, load_rubric, loads_json, loads_toml, rubric_from_dict
 from ptisprover.sorts import BOOL, INT, REAL, BitVecSort
 from tests.repo_paths import ORIGINAL
 from tests.strategies import plausible_rubrics, rubric_like_dicts
@@ -463,6 +463,7 @@ def test_values_of_unexpected_python_types_are_named() -> None:
 # Numbers and nesting that would otherwise crash or hang the loader.
 
 LIMIT = "numbers are limited to 100 digits on each side of the decimal point"
+DEEP = f"values are nested more than {MAX_NESTING} levels deep"
 
 
 @pytest.mark.parametrize(
@@ -505,10 +506,19 @@ def test_an_id_that_is_a_huge_number_is_described_not_printed() -> None:
     [
         (loads_toml, "id = " + "9" * 5000, f"invalid TOML: {LIMIT}"),
         (loads_json, '{"id": ' + "9" * 5000 + "}", f"invalid JSON: {LIMIT}"),
-        (loads_toml, "x = " + "[" * 100_000, "invalid TOML: values are nested too deeply"),
-        (loads_json, "[" * 100_000, "invalid JSON: values are nested too deeply"),
+        (loads_toml, "x = " + "[" * 100_000 + "]" * 100_000, f"invalid TOML: {DEEP}"),
+        (loads_json, "[" * 100_000 + "]" * 100_000, f"invalid JSON: {DEEP}"),
+        (loads_toml, "x = " + "[" * 32 + "]" * 32, f"invalid TOML: {DEEP}"),
+        (loads_json, '{"x": ' + "[" * 32 + "]" * 32 + "}", f"invalid JSON: {DEEP}"),
     ],
-    ids=["toml-digits", "json-digits", "toml-nesting", "json-nesting"],
+    ids=[
+        "toml-digits",
+        "json-digits",
+        "toml-nesting",
+        "json-nesting",
+        "toml-33-levels",
+        "json-33-levels",
+    ],
 )
 def test_input_python_cannot_read_is_a_rubric_error(
     loads: Callable[[str], object], text: str, message: str
@@ -516,3 +526,17 @@ def test_input_python_cannot_read_is_a_rubric_error(
     with pytest.raises(RubricError) as exc:
         loads(text)
     assert [d.message for d in exc.value.diagnostics] == [message]
+
+
+# On Python 3.14 the json module's recursion limit depends on the stack size. A GitHub runner
+# parsed 100,000 nested brackets that failed on the development machine, so the depth check
+# is now the loader's own and the same file gets the same answer everywhere.
+@pytest.mark.parametrize("loads", [loads_toml, loads_json], ids=["toml", "json"])
+def test_deep_nesting_is_judged_the_same_whatever_the_stack_size(
+    loads: Callable[[str], object],
+) -> None:
+    within = "[" * (MAX_NESTING - 1) + "]" * (MAX_NESTING - 1)
+    text = f"x = {within}" if loads is loads_toml else f'{{"x": {within}}}'
+    with pytest.raises(RubricError) as exc:
+        loads(text)
+    assert all(DEEP not in d.message for d in exc.value.diagnostics)

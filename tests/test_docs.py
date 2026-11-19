@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ptisprover import cli, exact, lexer, parser, prover, smt
+from ptisprover import cli, exact, lexer, loader, parser, prover, smt
 from ptisprover.smt import DEFAULT_BUDGET
 from tests.repo_paths import ROOT
 
@@ -71,4 +71,5 @@ def test_semantics_document_states_the_limits_in_the_code() -> None:
     assert f"at most {lexer.MAX_EXPRESSION_LENGTH:,} characters long" in semantics
     assert f"at most {parser.MAX_DEPTH} levels of nested" in semantics
     assert f"literals of at most {exact.MAX_DIGITS} characters" in semantics
+    assert f"at most {loader.MAX_NESTING} levels deep" in semantics
     assert f"accepts 1 to {smt.MAX_BUDGET:,}" in semantics
